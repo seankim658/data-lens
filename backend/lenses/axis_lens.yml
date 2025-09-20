@@ -1,0 +1,25 @@
+id: "axis_lens"
+name: "The Axis Lens"
+description: "Manipulate the Y-axis to see how scale can exaggerate or minimize a trend."
+
+# Defines the UI controls the frontend should render for this lens.
+# The 'target' points to a key in the frontend's chartConfig state object.
+controls:
+  - type: "draggable_handle"
+    target: "yAxis.min"
+    label: "Drag to set Y-axis start"
+  - type: "draggable_handle"
+    target: "yAxis.max"
+    label: "Drag to set Y-axis end"
+
+prompt_template: >
+  A user is investigating how changing a chart's axis can alter perception.
+  They are using a dataset summarized as: {dataset_summary}.
+
+  On their chart, they changed the Y-axis range from {details[original_range]} to {details[new_range]}.
+
+  The user's hypothesis was: "{user_hypothesis}"
+
+  Please analyze their action based on the provided "before" and "after" images of the chart.
+  Explain the concept of a **truncated axis** and how their change demonstrates this concept.
+  Evaluate their hypothesis and provide a clear, educational explanation.
