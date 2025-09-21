@@ -1,12 +1,14 @@
+import logging
 import yaml
 import uuid
 import polars as pl
 from io import BytesIO
 from pathlib import Path
 from typing import Dict, Any, List, Tuple
+from pydantic import ValidationError
 
 from config import settings
-from models import InteractionPayload
+from models import InteractionPayload, LensConfig
 from session_store.base import SessionStore
 from session_store.memory import InMemorySessionStore
 from session_store.redis import RedisSessionStore
@@ -17,12 +19,36 @@ LENSES_DIR = Path(__file__).parent / "lenses"
 SESSION_STORAGE: Dict[str, str] = {}
 
 DEFAULT_SYSTEM_PROMPT = """
-You are the AI Assistant for "Data Lens", an interactive toolkit for data literacy. Your role
-is to be a helpful and insightful guide to help people understand how critically think and interpret
+You are the AI Assistant for "Data Lens", an interactive toolkit for data literacy. Users inspect 
+the data visualized in different formats, formulate hypothesis, and apply "lenses" to the dta 
+visualization. A lens is a specific data visualization action to see how different representations 
+of data can lead to potential "dark patterns" that cause passive consumers to form false narratives. 
+Your role is to be a helpful and insightful guide to help people understand how critically think and interpret
 data visualizations, charts, and graphs. Explain the underlying data literacy concepts clearly, 
 constructively, and concisely, using Markdown for formatting. Your goal is to help the user understand
 the 'why' behind a data visualiation principle. If provided content and queries unrelated to the Data
 Lens tool, mention that this is outside your scope.
+"""
+
+BASE_PROMPT_TEMPLATE = """
+A user is using the "Data Lens" tool to learn about data literacy.
+Please analyze their action based on the provided "before" and "after" images of the chart.
+
+Here is the context for the dataset they are using:
+--- DATASET CONTEXT ---
+{dataset_summary}
+-----------------------
+
+Here is the user's stated hypothesis for their action:
+--- USER HYPOTHESIS ---
+{user_hypothesis}
+-----------------------
+
+The specific action they took is described below. Please evaluate their action and hypothesis,
+explain the relevant data literacy concept, and provide a clear, educational explanation.
+--- LENS-SPECIFIC DETAILS ---
+{lens_specific_prompt}
+-----------------------
 """
 
 _llm_provider: LLMProvider
@@ -60,25 +86,31 @@ class LensNotFoundError(Exception):
     pass
 
 
-def _load_lens_config(tool_id: str) -> Dict[str, Any]:
+def _load_lens_config(tool_id: str) -> LensConfig:
     """Loads a lens configuration file from the 'lenses' directory."""
     config_path = LENSES_DIR / f"{tool_id}.yml"
     if not config_path.exists():
         raise LensNotFoundError(f"Lens configuration for '{tool_id}' not found.")
 
     with open(config_path, "r") as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f)
+        try:
+            return LensConfig(**data)
+        except ValidationError as e:
+            raise ValueError(f"Invalid lens configuration for '{tool_id}': {e}")
 
 
 async def get_ai_explanation(payload: InteractionPayload, dataset_summary: str) -> str:
     """Generates an explanation from the LLM based on the user's interaction."""
     lens_config = _load_lens_config(payload.tool)
-    prompt_template = lens_config["prompt_template"]
+    lens_prompt_template = lens_config.lens_specific_prompt
 
-    populated_prompt = prompt_template.format(
+    populated_lens_prompt = lens_prompt_template.format(details=payload.details)
+
+    full_prompt = BASE_PROMPT_TEMPLATE.format(
         dataset_summary=dataset_summary,
         user_hypothesis=payload.user_hypothesis or "No hypothesis was provided.",
-        details=payload.details,
+        lens_specific_prompt=populated_lens_prompt,
     )
 
     messages: List[Dict[str, str | List[Any]]] = [
@@ -86,12 +118,19 @@ async def get_ai_explanation(payload: InteractionPayload, dataset_summary: str) 
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": populated_prompt},
+                {"type": "text", "text": full_prompt},
                 {
                     "type": "image_url",
-                    "image_url": {"url": payload.before_image_base64},
+                    "image_url": {
+                        "url": f"data:image/png;base64,{payload.before_image_base64}"
+                    },
                 },
-                {"type": "image_url", "image_url": {"url": payload.after_image_base64}},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{payload.after_image_base64}"
+                    },
+                },
             ],
         },
     ]
@@ -99,8 +138,7 @@ async def get_ai_explanation(payload: InteractionPayload, dataset_summary: str) 
     try:
         return await _llm_provider.generate_explanation(messages)
     except Exception as e:
-        # TODO : this should be logged, printing for now
-        print(f"Error during AI explanation generation: {e}")
+        logging.error(f"Error during AI explanation generation: {e}", exc_info=True)
         return "Sorry, I encountered an error while analyzing your action."
 
 
@@ -123,4 +161,4 @@ def create_and_store_session(description: str, file_contents: bytes) -> Tuple[st
 
 def get_summary_from_session(session_id: str) -> str | None:
     """Retrieves a dataset summary from the session storage."""
-    return SESSION_STORAGE.get(session_id)
+    return _session_store.get_summary(session_id)

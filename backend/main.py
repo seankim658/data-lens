@@ -1,6 +1,10 @@
+import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from models import InteractionPayload
 from services import (
@@ -9,16 +13,23 @@ from services import (
     initialize_llm_provider,
     create_and_store_session,
     get_summary_from_session,
+    initialize_session_store,
 )
+from logger import setup_logging
+from middleware import RequestIDMiddleware
+
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handles startup and shutdown events for the application."""
-    print("Initializing LLM Provider...")
+    setup_logging()
+    logging.info("Initializing services...")
+    initialize_session_store()
     initialize_llm_provider()
     yield
-    print("LLM Provider shutdown...")
+    print("Services shutdown...")
 
 
 app = FastAPI(
@@ -27,6 +38,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
+
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,35 +52,48 @@ app.add_middleware(
 
 
 @app.post("/api/upload")
-async def upload_dataset(description: str = Form(...), file: UploadFile = File(...)):
+@limiter.limit("2/minute")
+async def upload_dataset(
+    request: Request, description: str = Form(...), file: UploadFile = File(...)
+):
     """Handles dataset uploads by calling the session management service."""
+    logging.info(f"Received upload request for file: {file.filename}")
     try:
         contents = await file.read()
         session_id, summary = create_and_store_session(description, contents)
+        logging.info(f"Successfully created session {session_id}")
         return {"session_id": session_id, "summary": summary}
     except Exception as e:
+        logging.error(f"Failed to process file upload: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Failed to process file: {e}")
 
 
 @app.post("/api/analyze")
-async def analyze_interaction(payload: InteractionPayload):
+@limiter.limit("10/minute")
+async def analyze_interaction(request: Request, payload: InteractionPayload):
     """Receives a user's interaction, retrieves context from the session service,
     sends to the LLM, and returns the LLM explanation.
     """
+    logging.info(f"Received analysis request for tool '{payload.tool}'")
     dataset_summary = get_summary_from_session(payload.session_id)
     if not dataset_summary:
+        logging.warning(f"Session not found for session_id: '{payload.session_id}'")
         raise HTTPException(
             status_code=404, detail="Session not found. Please upload a dataset first."
         )
 
     try:
         explanation = await get_ai_explanation(payload, dataset_summary)
+        logging.debug("Successfully generated AI explanation")
         return {"explanation": explanation}
     except LensNotFoundError as e:
+        logging.warning(f"Lens not found: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
+        logging.error(f"Configuration error during analysis: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Configuration error: {e}")
     except Exception as e:
+        logging.error(f"Internal server error during analysis: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"An internal server error occurred: {e}"
         )
