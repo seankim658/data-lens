@@ -49,7 +49,7 @@ export const HomePage = () => {
       </Card>
 
       <div className={`collapsible-section ${showUpload ? "expanded" : ""}`}>
-        <FileUpload />
+        <FileUpload onClose={() => setShowUpload(false)} />
       </div>
     </div>
   );
