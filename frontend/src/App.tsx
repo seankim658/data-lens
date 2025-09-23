@@ -1,20 +1,22 @@
-import { useAppState } from "./hooks/useAppContext";
+import { Routes, Route } from "react-router-dom";
+import { MainLayout } from "./components/layout/MainLayout";
+import { CenteredLayout } from "./components/layout/CenteredLayout";
+import { HomePage } from "./pages/HomePage";
+import { WorkspacePage } from "./pages/WorkspacePage";
 import "./App.css";
 
-// TODO : placeholders for now
-const FileUpload = () => <div>File Upload Component</div>;
-const Workspace = () => <div>Main Workspace Component</div>;
-
 function App() {
-  const { sessionId } = useAppState();
-
   return (
-    <div className="app-container">
-      <header>
-        <h1>Data Lens</h1>
-      </header>
-      <main>{sessionId ? <Workspace /> : <FileUpload />}</main>
-    </div>
+    <Routes>
+      <Route element={<CenteredLayout />}>
+        <Route path="/" element={<HomePage />} />
+      </Route>
+
+      <Route element={<MainLayout />}>
+        <Route path="/workspace" element={<WorkspacePage />} />
+        {/* TODO : Add about page later */}
+      </Route>
+    </Routes>
   );
 }
 
