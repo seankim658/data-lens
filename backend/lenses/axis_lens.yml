@@ -1,6 +1,7 @@
 id: "axis_lens"
 name: "The Axis Lens"
 description: "Manipulate the Y-axis to see how scale can exaggerate or minimize a trend."
+compatible_charts: ["line", "bar", "scatter"]
 
 # Defines the UI controls the frontend should render for this lens.
 # The 'target' points to a key in the frontend's chartConfig state object.

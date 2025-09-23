@@ -1,6 +1,7 @@
 import logging
 import yaml
 import uuid
+import json
 import polars as pl
 from io import BytesIO
 from pathlib import Path
@@ -8,10 +9,10 @@ from typing import Dict, Any, List, Tuple
 from pydantic import ValidationError
 
 from config import settings
-from models import InteractionPayload, LensConfig
+from models import InteractionPayload, LensConfig, SessionData, ColumnInfo
 from session_store.base import SessionStore
-from session_store.memory import InMemorySessionStore
-from session_store.redis import RedisSessionStore
+from session_store.memory_store import InMemorySessionStore
+from session_store.redis_store import RedisSessionStore
 from providers.base import LLMProvider
 from providers.openai import OpenAIProvider
 
@@ -142,7 +143,9 @@ async def get_ai_explanation(payload: InteractionPayload, dataset_summary: str) 
         return "Sorry, I encountered an error while analyzing your action."
 
 
-def create_and_store_session(description: str, file_contents: bytes) -> Tuple[str, str]:
+def create_and_store_session(
+    description: str, file_contents: bytes
+) -> Tuple[str, SessionData]:
     """Processes a dataset, creates a summary, stores it in a new session, and returns
     the session ID and summary.
     """
@@ -150,15 +153,37 @@ def create_and_store_session(description: str, file_contents: bytes) -> Tuple[st
 
     df = pl.read_csv(BytesIO(file_contents))
     stats_summary = str(df.describe())
+
+    columns = [
+        ColumnInfo(name=name, dtype=str(dtype)) for name, dtype in df.schema.items()
+    ]
+
     full_summary = (
         f"User Description: {description}\n\nStatistical Summary:\n{stats_summary}"
     )
 
-    _session_store.save_summary(session_id, full_summary)
+    session_data = SessionData(summary=full_summary, columns=columns)
 
-    return session_id, full_summary
+    _session_store.save_data(session_id, session_data.model_dump_json())
+
+    return session_id, session_data
 
 
-def get_summary_from_session(session_id: str) -> str | None:
-    """Retrieves a dataset summary from the session storage."""
-    return _session_store.get_summary(session_id)
+def get_session_data(session_id: str) -> SessionData | None:
+    """Retrieves and parses dataset session data from storage."""
+    json_data = _session_store.get_data(session_id)
+    if json_data:
+        return SessionData(**json.loads(json_data))
+    return None
+
+
+def get_all_lens_configs() -> List[LensConfig]:
+    """Loads all lens configuration files."""
+    configs = []
+    for f in LENSES_DIR.glob("*.yml"):
+        tool_id = f.stem
+        try:
+            configs.append(_load_lens_config(tool_id))
+        except (LensNotFoundError, ValueError) as e:
+            logging.warning(f"Could not load lens config for '{tool_id}': {e}")
+    return configs

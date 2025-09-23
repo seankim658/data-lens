@@ -1,4 +1,5 @@
 import logging
+from typing import List
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,13 +7,14 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from models import InteractionPayload
+from models import InteractionPayload, LensConfig
 from services import (
     get_ai_explanation,
     LensNotFoundError,
+    get_all_lens_configs,
     initialize_llm_provider,
     create_and_store_session,
-    get_summary_from_session,
+    get_session_data,
     initialize_session_store,
 )
 from logger import setup_logging
@@ -52,7 +54,7 @@ app.add_middleware(
 
 
 @app.post("/api/upload")
-@limiter.limit("2/minute")
+@limiter.limit("5/minute")
 async def upload_dataset(
     request: Request, description: str = Form(...), file: UploadFile = File(...)
 ):
@@ -75,13 +77,14 @@ async def analyze_interaction(request: Request, payload: InteractionPayload):
     sends to the LLM, and returns the LLM explanation.
     """
     logging.info(f"Received analysis request for tool '{payload.tool}'")
-    dataset_summary = get_summary_from_session(payload.session_id)
-    if not dataset_summary:
+    session_data = get_session_data(payload.session_id)
+    if not session_data:
         logging.warning(f"Session not found for session_id: '{payload.session_id}'")
         raise HTTPException(
             status_code=404, detail="Session not found. Please upload a dataset first."
         )
 
+    dataset_summary = session_data.summary
     try:
         explanation = await get_ai_explanation(payload, dataset_summary)
         logging.debug("Successfully generated AI explanation")
@@ -97,6 +100,13 @@ async def analyze_interaction(request: Request, payload: InteractionPayload):
         raise HTTPException(
             status_code=500, detail=f"An internal server error occurred: {e}"
         )
+
+
+@app.get("/api/lenses", response_model=List[LensConfig])
+async def list_lenses(request: Request):
+    """Returns a list of all available lens configurations."""
+    logging.info("Fetching all available lens configurations")
+    return get_all_lens_configs()
 
 
 @app.get("/")
