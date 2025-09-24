@@ -3,7 +3,10 @@ import yaml
 from pathlib import Path
 from typing import List, Dict, Any
 from pydantic import ValidationError
-from .models import LensConfig
+
+from .models import EvaluationContext, LensConfig
+from .evaluator import RuleEvaluator
+from domains.lenses import evaluator
 
 LENSES_DIR = Path(__file__).parents[2] / "lenses"
 _LENS_CACHE: List[LensConfig] = []  # TODO : maybe make this more robust later
@@ -49,24 +52,20 @@ def get_lens_by_id(lens_id: str) -> LensConfig:
     raise LensNotFoundError(f"Lens configuration for '{lens_id}' not found in cache")
 
 
-# --- TODO : Rule Engine (Future Implementation) ---
-# All placeholders right now
-
-def _evaluate_rule(rule: Dict[str, Any], context: Dict[str, Any]) -> bool:
-    logging.debug(f"Evaluating rule: {rule} against context.")
-    return True
-
-
-def get_compatible_lenses(context: Dict[str, Any]) -> List[LensConfig]:
+def get_compatible_lenses(context: EvaluationContext) -> List[LensConfig]:
     """Filters the cached lenses based on the provided context and their compatibility rules."""
+    evaluator = RuleEvaluator(context)
     compatible_lenses = []
     all_lenses = get_all_lenses_from_cache()
 
     for lens in all_lenses:
-        is_compatible = all(
-            _evaluate_rule(rule.model_dump(), context) for rule in lens.compatibility
-        )
-        if is_compatible:
-            compatible_lenses.append(lens)
+        try:
+            is_compatible = all(evaluator.evaluate(rule) for rule in lens.compatibility)
+            if is_compatible:
+                compatible_lenses.append(lens)
+        except Exception as e:
+            logging.error(
+                f"Error evaluating rules for lens '{lens.id}': {e}", exc_info=True
+            )
 
     return compatible_lenses

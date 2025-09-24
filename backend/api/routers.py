@@ -8,11 +8,14 @@ from .util import get_session_store, get_llm_provider
 from session_store.base import SessionStore
 from providers.base import LLMProvider
 
-from domains.lenses.models import LensConfig
-from domains.lenses.service import get_all_lenses_from_cache, LensNotFoundError
+from domains.lenses.models import LensConfig, EvaluationContext
+from domains.lenses.service import (
+    get_all_lenses_from_cache,
+    LensNotFoundError,
+    get_compatible_lenses,
+)
 from domains.analysis.models import InteractionPayload
 from domains.analysis.service import get_ai_explanation
-from domains.session.models import SessionData
 from domains.session.service import create_and_store_session, get_session_data
 
 router = APIRouter()
@@ -65,7 +68,20 @@ async def analyze_interaction(
         raise HTTPException(status_code=500, detail="An internal server error occurred")
 
 
-@router.get("/lenses", response_model=List[LensConfig])
+@router.post("/lenses/compatible", response_model=List[LensConfig])
+async def list_compatible_lenses(request: Request, context: EvaluationContext):
+    """Accepts a context object and returns a list of lenses whose compatability rules pass."""
+    logging.debug(f"Fetching compatible lenses for context: {context.model_dump()}")
+    try:
+        return get_compatible_lenses(context)
+    except Exception as e:
+        logging.error(f"Failed to get compatible lenses: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail="Failed to evaluate lens compatability"
+        )
+
+
+@router.get("/lenses/all", response_model=List[LensConfig])
 async def list_lenses(request: Request):
     """Returns a list of all available lens configurations from the cache."""
     logging.debug("Fetching all available lens configurations.")
