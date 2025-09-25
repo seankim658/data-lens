@@ -1,7 +1,7 @@
 export interface LensControl {
   type: string;
   target: string;
-  lable: string;
+  label: string;
 }
 
 export interface LensConfig {
@@ -9,7 +9,7 @@ export interface LensConfig {
   name: string;
   description: string;
   controls: LensControl[];
-  lens_specific_prompt: string;
+  lens_prompt: string;
 }
 
 export interface InteractionPayload {
@@ -22,9 +22,19 @@ export interface InteractionPayload {
   after_image_base64: string;
 }
 
+export interface ColumnInfo {
+  name: string;
+  dtype: string;
+}
+
+export interface SessionData {
+  summary: string;
+  columns: ColumnInfo[];
+}
+
 export interface UploadResponse {
   session_id: string;
-  summary: string;
+  data: SessionData;
 }
 
 export interface AnalyzeResponse {

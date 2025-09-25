@@ -1,12 +1,11 @@
 import { Outlet } from "react-router-dom";
+import { SiteHeader } from "@/components/ui/site-header";
 
 export const MainLayout = () => {
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="pb-4 border-b">
-        <h1 className="text-2xl font-bold text-center">Data Lens 🔎</h1>
-      </header>
-      <main className="flex-grow container mx-auto p-4 md:p-8">
+      <SiteHeader />
+      <main className="flex-grow container mx-auto py-16 md:py-20 px-4 md:px-8">
         <Outlet />
       </main>
     </div>

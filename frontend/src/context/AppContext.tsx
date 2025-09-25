@@ -1,9 +1,11 @@
 import { useReducer } from "react";
 import { AppStateContext, AppDispatchContext } from "../hooks/useAppContext";
+import type { ColumnInfo } from "@/types/api";
 
 export interface AppState {
   sessionId: string | null;
   datasetSummary: string | null;
+  columns: ColumnInfo[] | null;
   isLoading: boolean;
   error: string | null;
   aiResponse: string | null;
@@ -12,6 +14,7 @@ export interface AppState {
 const initialState: AppState = {
   sessionId: null,
   datasetSummary: null,
+  columns: null,
   isLoading: false,
   error: null,
   aiResponse: null,
@@ -19,7 +22,13 @@ const initialState: AppState = {
 
 export type AppAction =
   | { type: "UPLOAD_START" }
-  | { type: "UPLOAD_SUCCESS"; payload: { sessionId: string; summary: string } }
+  | {
+      type: "UPLOAD_SUCCESS";
+      payload: {
+        sessionId: string;
+        data: { summary: string; columns: ColumnInfo[] };
+      };
+    }
   | { type: "UPLOAD_FAILURE"; payload: string }
   | { type: "ANALYZE_START" }
   | { type: "ANALYZE_SUCESS"; payload: string }
@@ -35,7 +44,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         ...state,
         isLoading: false,
         sessionId: action.payload.sessionId,
-        datasetSummary: action.payload.summary,
+        datasetSummary: action.payload.data.summary,
+        columns: action.payload.data.columns,
       };
     case "UPLOAD_FAILURE":
       return { ...state, isLoading: false, error: action.payload };
