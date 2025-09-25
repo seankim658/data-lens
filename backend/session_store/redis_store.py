@@ -1,6 +1,6 @@
 from redis import Redis
 from session_store.base import SessionStore
-from config import settings
+from core.config import settings
 
 
 class RedisSessionStore(SessionStore):
