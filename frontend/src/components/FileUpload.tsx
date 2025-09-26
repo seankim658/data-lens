@@ -58,7 +58,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
       const response = await uploadDataset(description, file);
       dispatch({
         type: "UPLOAD_SUCCESS",
-        payload: { sessionId: response.session_id, summary: response.summary },
+        payload: { sessionId: response.session_id, data: response.data },
       });
     } catch (err) {
       dispatch({ type: "UPLOAD_FAILURE", payload: (err as Error).message });

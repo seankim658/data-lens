@@ -3,7 +3,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-from logger import request_id_var
+from core.logger import request_id_var
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
