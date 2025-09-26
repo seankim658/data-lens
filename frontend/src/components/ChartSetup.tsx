@@ -123,7 +123,10 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
                   draggable
                   onDragStart={() => handleDragStart(col.name)}
                   onDragEnd={() => setDraggedColumn(null)}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium border rounded-md cursor-grab bg-muted/50 text-muted-foreground transition-all hover:border-primary hover:bg-primary/10 hover:text-primary active:cursor-grabbing active:shadow-lg active:scale-105"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 text-sm font-medium border rounded-md cursor-grab bg-muted/50 text-muted-foreground transition-all hover:border-primary hover:bg-primary/10 hover:text-primary active:cursor-grabbing active:shadow-lg active:scale-105",
+                    { "opacity-0": draggedColumn === col.name },
+                  )}
                 >
                   <GripVertical className="w-4 h-4" />
                   {col.name}
