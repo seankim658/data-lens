@@ -1,11 +1,42 @@
 import { useState } from "react";
 import { useAppState } from "@/hooks/useAppContext";
+import type { ColumnInfo } from "@/types/api";
 import { Button } from "@/components/ui/button";
-import { type Axis, chartConfigMap } from "@/config/chartConfig";
+import { type AxisId, chartConfigMap } from "@/config/chartConfig";
 import { GripVertical, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, isNumeric } from "@/lib/utils";
 
-type ColumnMapping = Record<Axis, string | null>;
+const ColumnPillGroup: React.FC<{
+  columns: ColumnInfo[];
+  onDragStart: (name: string) => void;
+  onDragEnd: () => void;
+  draggedColumn: string | null;
+  emptyText: string;
+}> = ({ columns, onDragStart, onDragEnd, draggedColumn, emptyText }) => (
+  <div className="flex flex-wrap items-center justify-center gap-3 p-2 min-h-[5.5rem] rounded-md bg-muted/30">
+    {columns.length > 0 ? (
+      columns.map((col) => (
+        <div
+          key={col.name}
+          draggable
+          onDragStart={() => onDragStart(col.name)}
+          onDragEnd={onDragEnd}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 text-sm font-medium border rounded-md cursor-grab bg-background transition-all hover:border-primary hover:bg-primary/10 hover:text-primary active:cursor-grabbing active:shadow-lg active:scale-105",
+            { "opacity-0": draggedColumn === col.name },
+          )}
+        >
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+          {col.name}
+        </div>
+      ))
+    ) : (
+      <p className="text-sm text-muted-foreground">{emptyText}</p>
+    )}
+  </div>
+);
+
+type ColumnMapping = Record<AxisId, string | null>;
 
 interface ChartSetupProps {
   chartType: string;
@@ -19,92 +50,132 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
   onGenerate,
 }) => {
   const { columns } = useAppState();
-  const requiredAxes = chartConfigMap.get(chartType)?.axes || [];
+  const requiredAxesConfig = chartConfigMap.get(chartType)?.axes || [];
   const initialMapping = Object.fromEntries(
-    requiredAxes.map((axis) => [axis, null]),
+    requiredAxesConfig.map((axis) => [axis.id, null]),
   ) as ColumnMapping;
 
   const [mapping, setMapping] = useState<ColumnMapping>(initialMapping);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
-  const [isDraggingOver, setIsDraggingOver] = useState<Axis | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState<AxisId | null>(null);
 
   const assignedColumns = new Set(Object.values(mapping).filter(Boolean));
-  const availableColumns =
-    columns?.filter((col) => !assignedColumns.has(col.name)) || [];
-  const isFormComplete = requiredAxes.every((axis) => mapping[axis]);
+  const isFormComplete = requiredAxesConfig.every((axis) => mapping[axis.id]);
+
+  const availableCategorical =
+    columns
+      ?.filter((col) => !assignedColumns.has(col.name) && !isNumeric(col.dtype))
+      .sort((a, b) => a.name.localeCompare(b.name)) || [];
+  const availableNumeric =
+    columns
+      ?.filter((col) => !assignedColumns.has(col.name) && isNumeric(col.dtype))
+      .sort((a, b) => a.name.localeCompare(b.name)) || [];
+
+  const axisKinds = new Set(
+    requiredAxesConfig.map((axis) =>
+      axis.id === "category" ? "category" : "numeric",
+    ),
+  );
+  const areAxisTypesMixed = axisKinds.size > 1;
 
   const handleDragStart = (columnName: string) => {
     setDraggedColumn(columnName);
   };
-
+  const handleDragEnd = () => {
+    setDraggedColumn(null);
+    setIsDraggingOver(null);
+  };
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
+  const handleDragEnter = (targetAxisId: AxisId) => {
+    if (!draggedColumn) return;
 
-  const handleDrop = (targetAxis: Axis) => {
-    if (draggedColumn) {
-      setMapping((prev) => ({ ...prev, [targetAxis]: draggedColumn }));
-      setDraggedColumn(null);
+    const column = columns?.find((c) => c.name === draggedColumn);
+    if (!column) return;
+
+    const isCategoricalAxis = targetAxisId === "category";
+    const isColumnNumeric = isNumeric(column.dtype);
+
+    if (isCategoricalAxis !== isColumnNumeric) {
+      setIsDraggingOver(targetAxisId);
     }
+  };
+  const handleDrop = (targetAxisId: AxisId) => {
+    if (draggedColumn) {
+      // Prevent dropping a numeric column on a category axis and vice versa
+      const column = columns?.find((c) => c.name === draggedColumn);
+      if (!column) return;
+      const isCategoricalAxis = targetAxisId === "category";
+      const isColumnNumeric = isNumeric(column.dtype);
+      if (isCategoricalAxis === isColumnNumeric) {
+        // Mismatch: trying to drop numeric on category, or vice versa
+        setIsDraggingOver(null);
+        return;
+      }
+      setMapping((prev) => ({ ...prev, [targetAxisId]: draggedColumn }));
+    }
+    setDraggedColumn(null);
     setIsDraggingOver(null);
   };
-
-  const handleClearAxis = (axis: Axis) => {
-    setMapping((prev) => ({ ...prev, [axis]: null }));
-  };
-
+  const handleClearAxis = (axisId: AxisId) =>
+    setMapping((prev) => ({ ...prev, [axisId]: null }));
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFormComplete) {
-      onGenerate(mapping);
-    }
+    if (isFormComplete) onGenerate(mapping);
   };
 
   return (
     <div className="w-full max-w-3xl mx-auto">
       <form onSubmit={handleSubmit}>
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-semibold">Map Your Data Columns</h2>
+          <h2 className="text-2xl font-semibold">
+            Map Data Columns for{" "}
+            {chartType.charAt(0).toUpperCase() + chartType.substr(1)} Chart
+          </h2>
           <p className="text-muted-foreground">
             Drag columns from the grid and drop them onto the desired chart
-            componet.
+            component.
           </p>
         </div>
 
         <div className="space-y-12">
-          {/* Drop zones */}
-          <div className="flex justify-center gap-4 p-4 rounded-lg">
-            {requiredAxes.map((axis) => (
+          {/* Drop Zones */}
+          <div className="flex flex-col md:flex-row justify-center gap-6 p-4 rounded-lg">
+            {requiredAxesConfig.map((axis) => (
               <div
-                key={axis}
-                onDrop={() => handleDrop(axis)}
+                key={axis.id}
+                onDrop={() => handleDrop(axis.id)}
                 onDragOver={handleDragOver}
-                onDragEnter={() => setIsDraggingOver(axis)}
+                onDragEnter={() => handleDragEnter(axis.id)}
                 onDragLeave={() => setIsDraggingOver(null)}
                 className={cn(
-                  "w-full p-2 space-y-2 text-center border-2 border-dashed rounded-lg transition-colors",
-                  isDraggingOver == axis
+                  "w-full p-4 space-y-2 text-center border-2 border-dashed rounded-lg transition-colors",
+                  isDraggingOver === axis.id
                     ? "border-primary bg-primary/10"
                     : "border-muted-foreground/30",
                 )}
               >
-                <p className="text-sm font-medium capitalize text-muted-foreground">
-                  {axis} Axis
+                <p className="font-semibold text-foreground pointer-events-none">
+                  {axis.title}
                 </p>
-                <div className="flex items-center justify-center h-10">
-                  {mapping[axis] ? (
-                    <div className="flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-full bg-primary text-primary-foreground">
-                      {mapping[axis]}
+                <p className="text-xs text-muted-foreground px-2 pointer-events-none">
+                  {axis.description}
+                </p>
+                <div className="flex items-center justify-center pt-2 h-12 pointer-events-none">
+                  {mapping[axis.id] ? (
+                    <div className="flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-full bg-primary text-primary-foreground pointer-events-auto">
+                      {mapping[axis.id]}
                       <button
                         type="button"
-                        onClick={() => handleClearAxis(axis)}
+                        onClick={() => handleClearAxis(axis.id)}
                         className="p-0.5 rounded-full hover:bg-primary/80"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </div>
                   ) : (
-                    <span className="text-sm text-muted-foreground/80">
+                    <span className="text-sm text-muted-foreground/80 pointer-events-none">
                       Drop column here
                     </span>
                   )}
@@ -113,31 +184,58 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
             ))}
           </div>
 
-          {/* Grid of avilable columns */}
-          <div className="text-center">
+          {/* Available Columns */}
+          <div className="text-left p-4">
             <h3 className="mb-4 text-lg font-semibold">Available Columns</h3>
-            <div className="flex flex-wrap items-center justify-center gap-3 p-4 min-h-24">
-              {availableColumns.map((col) => (
-                <div
-                  key={col.name}
-                  draggable
-                  onDragStart={() => handleDragStart(col.name)}
-                  onDragEnd={() => setDraggedColumn(null)}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 text-sm font-medium border rounded-md cursor-grab bg-muted/50 text-muted-foreground transition-all hover:border-primary hover:bg-primary/10 hover:text-primary active:cursor-grabbing active:shadow-lg active:scale-105",
-                    { "opacity-0": draggedColumn === col.name },
-                  )}
-                >
-                  <GripVertical className="w-4 h-4" />
-                  {col.name}
+            {areAxisTypesMixed ? (
+              // Case 1: Mixed axis types (e.g., Bar Chart) -> Show two sections
+              <div className="flex flex-col gap-8">
+                <div className="space-y-3">
+                  <h4 className="font-medium text-muted-foreground">
+                    Categorical Fields
+                  </h4>
+                  <ColumnPillGroup
+                    columns={availableCategorical}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    draggedColumn={draggedColumn}
+                    emptyText="No available categorical columns."
+                  />
                 </div>
-              ))}
-              {availableColumns.length === 0 && (
-                <p className="col-span-full text-center text-muted-foreground">
-                  All columns have been assigned.
-                </p>
-              )}
-            </div>
+                <div className="space-y-3">
+                  <h4 className="font-medium text-muted-foreground">
+                    Numeric Fields
+                  </h4>
+                  <ColumnPillGroup
+                    columns={availableNumeric}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    draggedColumn={draggedColumn}
+                    emptyText="No available numeric columns."
+                  />
+                </div>
+              </div>
+            ) : (
+              // Case 2: Uniform axis types (e.g., Scatter Plot) -> Show one section
+              <div className="space-y-3">
+                <h4 className="font-medium text-muted-foreground">
+                  {axisKinds.has("numeric")
+                    ? "Numeric Fields"
+                    : "Categorical Fields"}
+                </h4>
+                <ColumnPillGroup
+                  columns={
+                    axisKinds.has("numeric")
+                      ? availableNumeric
+                      : availableCategorical
+                  }
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  draggedColumn={draggedColumn}
+                  emptyText="No available columns."
+                />
+              </div>
+            )}
           </div>
         </div>
 
