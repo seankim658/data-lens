@@ -1,3 +1,5 @@
+/* eslint-disable  @typescript-eslint/no-explicit-any */
+
 export interface LensControl {
   type: string;
   target: string;
@@ -15,7 +17,6 @@ export interface LensConfig {
 export interface InteractionPayload {
   session_id: string;
   tool: string;
-  /* eslint-disable  @typescript-eslint/no-explicit-any */
   details: Record<string, any>;
   user_hypothesis?: string | null;
   before_image_base64: string;
@@ -25,6 +26,7 @@ export interface InteractionPayload {
 export interface ColumnInfo {
   name: string;
   dtype: string;
+  description: { [key: string]: any } | null;
 }
 
 export interface SessionData {

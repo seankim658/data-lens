@@ -2,8 +2,13 @@ import { useState } from "react";
 import { useAppState } from "@/hooks/useAppContext";
 import type { ColumnInfo } from "@/types/api";
 import { Button } from "@/components/ui/button";
+import {
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent,
+} from "@/components/ui/hover-card";
 import { type AxisId, chartConfigMap } from "@/config/chartConfig";
-import { GripVertical, X } from "lucide-react";
+import { GripVertical, X, Info } from "lucide-react";
 import { cn, isNumeric } from "@/lib/utils";
 
 const ColumnPillGroup: React.FC<{
@@ -26,8 +31,45 @@ const ColumnPillGroup: React.FC<{
             { "opacity-0": draggedColumn === col.name },
           )}
         >
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
-          {col.name}
+          <div className="flex items-center gap-2 overflow-hidden">
+            <GripVertical className="w-4 h-4 text-muted-foreground" />
+            <span className="truncate" title={col.name}>
+              {col.name}
+            </span>
+          </div>
+
+          {col.description && (
+            <div>
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 rounded-full"
+                  >
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-48" side="top" align="center">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-center truncate">{col.name}</h4>
+                    <div className="space-y-1 text-xs">
+                      {Object.entries(col.description).map(([key, value]) => (
+                        <div key={key} className="flex justify-between">
+                          <span className="text-muted-foreground capitalize">
+                            {key.replace(/_/g, " ")}
+                          </span>
+                          <span className="font-mono font-medium">
+                            {String(value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
+            </div>
+          )}
         </div>
       ))
     ) : (
