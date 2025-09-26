@@ -129,7 +129,7 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
     <div className="w-full max-w-3xl mx-auto">
       <form onSubmit={handleSubmit}>
         <div
-          className="text-center mb-8 opacity-0 animate-fade-in-up"
+          className="text-center mb-4 opacity-0 animate-fade-in-up"
           style={{ animationDelay: "100ms" }}
         >
           <h2 className="text-2xl font-semibold">
@@ -142,7 +142,7 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
           </p>
         </div>
 
-        <div className="space-y-12">
+        <div className="space-y-6">
           {/* Drop Zones */}
           <div
             className="flex flex-col md:flex-row justify-center gap-6 p-4 pb-0 rounded-lg opacity-0 animate-fade-in-up"
