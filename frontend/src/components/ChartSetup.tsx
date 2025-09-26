@@ -128,7 +128,10 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
   return (
     <div className="w-full max-w-3xl mx-auto">
       <form onSubmit={handleSubmit}>
-        <div className="text-center mb-8">
+        <div
+          className="text-center mb-8 opacity-0 animate-fade-in-up"
+          style={{ animationDelay: "100ms" }}
+        >
           <h2 className="text-2xl font-semibold">
             Map Data Columns for{" "}
             {chartType.charAt(0).toUpperCase() + chartType.substr(1)} Chart
@@ -141,7 +144,10 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
 
         <div className="space-y-12">
           {/* Drop Zones */}
-          <div className="flex flex-col md:flex-row justify-center gap-6 p-4 rounded-lg">
+          <div
+            className="flex flex-col md:flex-row justify-center gap-6 p-4 pb-0 rounded-lg opacity-0 animate-fade-in-up"
+            style={{ animationDelay: "200ms" }}
+          >
             {requiredAxesConfig.map((axis) => (
               <div
                 key={axis.id}
@@ -185,7 +191,10 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
           </div>
 
           {/* Available Columns */}
-          <div className="text-left p-4">
+          <div
+            className="text-left p-4 pt-0 opacity-0 animate-fade-in-up"
+            style={{ animationDelay: "300ms" }}
+          >
             <h3 className="mb-4 text-lg font-semibold">Available Columns</h3>
             {areAxisTypesMixed ? (
               // Case 1: Mixed axis types (e.g., Bar Chart) -> Show two sections
@@ -239,7 +248,10 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-between mt-12">
+        <div
+          className="flex justify-between mt-12 opacity-0 animate-fade-in-up"
+          style={{ animationDelay: "400ms" }}
+        >
           <Button variant="outline" type="button" onClick={onBack}>
             Back
           </Button>
