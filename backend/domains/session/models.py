@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 
@@ -7,6 +7,7 @@ class ColumnInfo(BaseModel):
 
     name: str
     dtype: str
+    description: Optional[Dict[str, Any]]
 
 
 class SessionData(BaseModel):

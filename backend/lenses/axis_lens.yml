@@ -16,7 +16,7 @@ controls:
     target: "yAxis.max"
     label: "Drag to set Y-axis end"
 
-lens_specific_prompt: >
+lens_prompt: >
   The user is investigating how changing a chart's axis can alter perception.
   On their chart, they changed the Y-axis range from {details[original_range]} to {details[new_range]}.
 

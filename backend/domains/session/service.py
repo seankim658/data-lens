@@ -2,7 +2,7 @@ import uuid
 import json
 import polars as pl
 from io import BytesIO
-from typing import Tuple
+from typing import Any, Dict, List, Tuple
 
 from domains.session.models import SessionData, ColumnInfo
 from session_store.base import SessionStore
@@ -23,6 +23,42 @@ def initialize_session_store() -> SessionStore:
             return InMemorySessionStore()
 
 
+def _format_dataset_summary(
+    description: str, row_count: int, columns: List[ColumnInfo]
+) -> str:
+    """Formats the dataset summary."""
+    col_count = len(columns)
+    schema_str = "\n".join([f"- '{c.name}' ({c.dtype})" for c in columns])
+
+    summary = (
+        f"User-provided description: {description}\n\n"
+        f"The dataset has {row_count} rows and {col_count} columns.\n\n"
+        f"Columns and their data types:\n{schema_str}"
+    )
+    return summary
+
+
+def _create_column_descriptions(describe_df: pl.DataFrame) -> Dict[str, Dict[str, Any]]:
+    """Transforms the polars describe dataframe to a dictionary."""
+    descriptions = {}
+    print(describe_df)
+    stat_names = describe_df.get_column("statistic").to_list()
+
+    for col_name in describe_df.columns[1:]:
+        stat_values = describe_df.get_column(col_name).to_list()
+
+        col_description = {}
+        for stat_name, value in zip(stat_names, stat_values):
+            if value is not None:
+                if isinstance(value, float):
+                    col_description[stat_name] = f"{value:.2f}"
+                else:
+                    col_description[stat_name] = value
+        descriptions[col_name] = col_description
+
+    return descriptions
+
+
 def create_and_store_session(
     session_store: SessionStore, description: str, file_contents: bytes
 ) -> Tuple[str, SessionData]:
@@ -30,15 +66,16 @@ def create_and_store_session(
     session_id = str(uuid.uuid4())
     df = pl.read_csv(BytesIO(file_contents))
 
+    describe_df = df.describe()
+    all_descriptions = _create_column_descriptions(describe_df)
+
     columns = [
-        ColumnInfo(name=name, dtype=str(dtype)) for name, dtype in df.schema.items()
+        ColumnInfo(name=name, dtype=str(dtype), description=all_descriptions.get(name))
+        for name, dtype in df.schema.items()
     ]
 
-    full_summary = (
-        f"User description: {description}\n\nStatistical Summary:\n{str(df.describe())}"
-    )
-
-    session_data = SessionData(summary=full_summary, columns=columns)
+    summary_str = _format_dataset_summary(description, df.height, columns)
+    session_data = SessionData(summary=summary_str, columns=columns)
     session_store.save_data(session_id, session_data.model_dump_json())
 
     return session_id, session_data
