@@ -1,15 +1,17 @@
 import { Button } from "./button";
 import Logo from "@/assets/logo.svg?react";
-import { MessageSquarePlus } from "lucide-react";
+import { MessageSquarePlus, MessageSquareX } from "lucide-react";
 
 interface SiteHeaderProps {
   onToggleSidebar: () => void;
   isSidebarEnabled: boolean;
+  isSidebarOpen: boolean;
 }
 
 export function SiteHeader({
   onToggleSidebar,
   isSidebarEnabled,
+  isSidebarOpen,
 }: SiteHeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b">
@@ -17,7 +19,12 @@ export function SiteHeader({
         <h1 className="text-xl font-semibold">Data Lens</h1>
         <Logo className="w-7 h-7" />
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="outline" asChild size="sm" className="hidden sm:flex">
+          <Button
+            variant="outline"
+            asChild
+            size="sm"
+            className="hidden sm:flex"
+          >
             <a
               href="https://github.com/seankim658/data-lens"
               rel="noopener noreferrer"
@@ -29,12 +36,16 @@ export function SiteHeader({
           </Button>
           {isSidebarEnabled && (
             <Button
-              variant="outline"
+              variant={isSidebarOpen ? "secondary" : "outline"}
               size="sm"
               onClick={onToggleSidebar}
               className="flex items-center gap-2"
             >
-              <MessageSquarePlus className="w-4 h-4" />
+              {isSidebarOpen ? (
+                <MessageSquareX className="w-4 h-4" />
+              ) : (
+                <MessageSquarePlus className="w-4 h-4" />
+              )}
               <span>Assistant</span>
             </Button>
           )}

@@ -2,16 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { useAppState, useAppDispatch } from "@/hooks/useAppContext";
 import { sendChatMessage } from "@/api/apiService";
-import { Bot, User, CornerDownLeft, X, LoaderCircle } from "lucide-react";
+import { Bot, User, CornerDownLeft, LoaderCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { cn } from "@/lib/utils";
 
-interface ChatSidebarProps {
-  onClose: () => void;
-}
-
-export function ChatSidebar({ onClose }: ChatSidebarProps) {
+export function ChatSidebar() {
   const { sessionId, chatHistory, isChatLoading } = useAppState();
   const dispatch = useAppDispatch();
   const [input, setInput] = useState("");
@@ -39,15 +35,11 @@ export function ChatSidebar({ onClose }: ChatSidebarProps) {
 
   return (
     <div className="flex flex-col h-full bg-card border-l">
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center p-4 border-b">
         <div className="flex items-center gap-2">
           <Bot className="w-6 h-6" />
           <h2 className="text-lg font-semibold">Assistant</h2>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X className="w-5 h-5" />
-          <span className="sr-only">Close</span>
-        </Button>
       </div>
 
       {/* Chat History */}
