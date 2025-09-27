@@ -1,33 +1,70 @@
-import logging
-import sys
-from contextvars import ContextVar
-
-request_id_var: ContextVar[str] = ContextVar("request_id", default="")
+import logging.config
+from typing import Literal
 
 
-class RequestIDFilter(logging.Filter):
-    """Inject the request_id into the log record."""
+class EnsureCorrelationIdFilter(logging.Filter):
+    """A logging filter that ensures every log record has a 'correlation_id' attribute.
+    If the attribute is missing, it sets a default value.
+    """
 
-    def filter(self, record):
-        record.request_id = request_id_var.get()
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "correlation_id"):
+            record.correlation_id = "-"
         return True
 
 
-def setup_logging() -> None:
+def setup_logging(level: Literal["debug", "info", "warning", "error"] = "info") -> None:
     """Configures the application logging with a request ID filter."""
-    # Remove any existing handlers
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
+    log_level = level.upper()
 
-    # Add custom filter
-    request_id_filter = RequestIDFilter()
-    logging.getLogger().addFilter(request_id_filter)
+    LOGGING_CONFIG = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "filters": {
+            "correlation_id": {
+                "()": "asgi_correlation_id.log_filters.CorrelationIdFilter",
+                "uuid_length": 32,
+                "default_value": "-",
+            },
+            "ensure_correlation_id": {
+                "()": EnsureCorrelationIdFilter,
+            },
+        },
+        "formatters": {
+            "default": {
+                "format": "%(asctime)s - [%(levelname)s] - [%(correlation_id)s] - %(name)s - %(message)s",
+            },
+            "simple": {
+                "format": "%(asctime)s - [%(levelname)s] - %(name)s - %(message)s",
+            },
+        },
+        "handlers": {
+            "default": {
+                "class": "logging.StreamHandler",
+                "formatter": "default",
+                "filters": ["correlation_id", "ensure_correlation_id"],
+                "stream": "ext://sys.stdout",
+            },
+            "simple": {
+                "class": "logging.StreamHandler",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "loggers": {
+            "uvicorn": {"handlers": ["simple"], "level": "INFO", "propagate": False},
+            "httpx": {"handlers": ["simple"], "level": "INFO", "propagate": False},
+            "httpcore": {"handlers": ["simple"], "level": "INFO", "propagate": False},
+            "python_multipart": {
+                "handlers": ["simple"],
+                "level": "INFO",
+                "propagate": False,
+            },
+        },
+        "root": {
+            "level": log_level,
+            "handlers": ["default"],
+        },
+    }
 
-    # Configure the formatter to include the request_id
-    formatter = logging.Formatter(
-        "%(asctime)s - [%(levelname)s] - [%(request_id)s] - %(name)s - %(message)s"
-    )
-
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(formatter)
-    logging.basicConfig(level=logging.INFO, handlers=[handler])
+    logging.config.dictConfig(LOGGING_CONFIG)

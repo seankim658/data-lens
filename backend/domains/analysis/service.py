@@ -1,4 +1,3 @@
-from inspect import classify_class_attrs
 import logging
 from typing import List, Dict, Any, Literal, Tuple
 
@@ -68,7 +67,7 @@ async def get_ai_explanation(
         correctness: Literal["correct", "partially_correct", "incorrect"] = "incorrect"
         if classification_str == "correct":
             correctness = "correct"
-        elif classification_str == "partiall_correct":
+        elif classification_str == "partially_correct":
             correctness = "partially_correct"
 
         # TODO : should we do a retry prompt on response structure failure

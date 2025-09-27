@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
-MAX_TOKENS = 500
+MAX_TOKENS = 5_000
 
 class LLMProvider(ABC):
     """Abstract base class for LLM providers."""

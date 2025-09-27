@@ -2,7 +2,7 @@ import logging
 from typing import List, Dict, Any
 
 from .prompts import CHAT_SYSTEM_PROMPT
-from domains.session.models import SessionData, ChatMessage
+from domains.session.models import SessionData
 from providers.base import LLMProvider
 
 

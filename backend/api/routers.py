@@ -138,5 +138,5 @@ async def list_compatible_lenses(request: Request, context: EvaluationContext):
 @router.get("/lenses/all", response_model=List[LensConfig])
 async def list_lenses(request: Request):
     """Returns a list of all available lens configurations from the cache."""
-    logging.debug("Fetching all available lens configurations.")
+    logging.debug("Fetching all available lens configurations")
     return get_all_lenses_from_cache()

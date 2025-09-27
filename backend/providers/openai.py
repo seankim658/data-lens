@@ -1,3 +1,4 @@
+import logging
 import openai
 from openai.types.chat import ChatCompletionMessageParam
 from typing import List, Dict, Any, cast
@@ -22,13 +23,17 @@ class OpenAIProvider(LLMProvider):
 
     async def generate_explanation(self, messages: List[Dict[str, Any]]) -> str:
         """Calls the OpenAI Chat Completions API with the given messages."""
+        logging.debug(f"Messages for chat:\n{messages}")
         try:
             typed_messages = cast(List[ChatCompletionMessageParam], messages)
             response = await self.client.chat.completions.create(
-                model=self.model, messages=typed_messages, max_completion_tokens=MAX_TOKENS
+                model=self.model,
+                messages=typed_messages,
+                max_completion_tokens=MAX_TOKENS,
             )
+            logging.debug(f"LLM Response:\n{response}")
             content = response.choices[0].message.content
             return content.strip() if content else ""
         except Exception as e:
-            print(f"Error calling OpenAI API: {e}")
+            logging.error(f"Error calling OpenAI API: {e}")
             raise
