@@ -1,6 +1,6 @@
 import { useReducer } from "react";
 import { AppStateContext, AppDispatchContext } from "../hooks/useAppContext";
-import type { ColumnInfo } from "@/types/api";
+import type { ColumnInfo, ChatMessage, AnalysisRecord } from "@/types/api";
 
 export interface AppState {
   sessionId: string | null;
@@ -9,6 +9,9 @@ export interface AppState {
   isLoading: boolean;
   error: string | null;
   aiResponse: string | null;
+  isChatLoading: boolean;
+  chatHistory: ChatMessage[];
+  analysisLog: AnalysisRecord[];
 }
 
 const initialState: AppState = {
@@ -18,6 +21,9 @@ const initialState: AppState = {
   isLoading: false,
   error: null,
   aiResponse: null,
+  isChatLoading: false,
+  chatHistory: [],
+  analysisLog: [],
 };
 
 export type AppAction =
@@ -31,8 +37,15 @@ export type AppAction =
     }
   | { type: "UPLOAD_FAILURE"; payload: string }
   | { type: "ANALYZE_START" }
-  | { type: "ANALYZE_SUCESS"; payload: string }
+  | {
+      type: "ANALYZE_SUCESS";
+      payload: { explanation: string; record: AnalysisRecord };
+    }
   | { type: "ANALYZE_FAILURE"; payload: string }
+  | { type: "CHAT_START" }
+  | { type: "CHAT_SUCCESS"; payload: ChatMessage }
+  | { type: "CHAT_FAILURE"; payload: string }
+  | { type: "ADD_USER_MESSAGE"; payload: ChatMessage }
   | { type: "RESET_ERROR" };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -52,9 +65,29 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case "ANALYZE_START":
       return { ...state, isLoading: true, error: null, aiResponse: null };
     case "ANALYZE_SUCESS":
-      return { ...state, isLoading: false, error: null };
+      return {
+        ...state,
+        isLoading: false,
+        aiResponse: action.payload.explanation,
+        analysisLog: [...state.analysisLog, action.payload.record],
+      };
     case "ANALYZE_FAILURE":
       return { ...state, isLoading: false, error: action.payload };
+    case "CHAT_START":
+      return { ...state, isChatLoading: true, error: null };
+    case "ADD_USER_MESSAGE":
+      return {
+        ...state,
+        chatHistory: [...state.chatHistory, action.payload],
+      };
+    case "CHAT_SUCCESS":
+      return {
+        ...state,
+        isChatLoading: false,
+        chatHistory: [...state.chatHistory, action.payload],
+      };
+    case "CHAT_FAILURE":
+      return { ...state, isChatLoading: false, error: action.payload };
     case "RESET_ERROR":
       return { ...state, error: null };
     default:

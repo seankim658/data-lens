@@ -29,9 +29,24 @@ export interface ColumnInfo {
   description: { [key: string]: any } | null;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AnalysisRecord {
+  lens_id: string;
+  lens_name: string;
+  user_hypothesis: string;
+  ai_summary: string;
+  correctness: "correct" | "partially_correct" | "incorrect";
+}
+
 export interface SessionData {
   summary: string;
   columns: ColumnInfo[];
+  chat_history: ChatMessage[];
+  analysis_log: AnalysisRecord[];
 }
 
 export interface UploadResponse {
@@ -40,5 +55,10 @@ export interface UploadResponse {
 }
 
 export interface AnalyzeResponse {
+  explanation: string;
+  correctness: "correct" | "partially_correct" | "incorrect";
+}
+
+export interface ChatResponse {
   explanation: string;
 }

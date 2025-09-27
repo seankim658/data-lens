@@ -2,6 +2,7 @@ import type {
   InteractionPayload,
   UploadResponse,
   AnalyzeResponse,
+  ChatResponse,
 } from "../types/api";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -52,6 +53,32 @@ export const analyzeInteraction = async (
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || "Failed to analyze interaction");
+  }
+
+  return response.json();
+};
+
+/**
+ * Sends a chat message to the backend.
+ * @param sessionId - The unique session ID.
+ * @param message - The user's message string.
+ * @returns A promise that resolves to the AI's response.
+ */
+export const sendChatMessage = async (
+  sessionId: string,
+  message: string,
+): Promise<ChatResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/chat/query`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ session_id: sessionId, message }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to send message.");
   }
 
   return response.json();
