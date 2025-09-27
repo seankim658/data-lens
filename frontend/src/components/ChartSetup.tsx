@@ -52,8 +52,18 @@ const ColumnPillGroup: React.FC<{
                 </HoverCardTrigger>
                 <HoverCardContent className="w-48" side="top" align="center">
                   <div className="space-y-2">
-                    <h4 className="font-semibold text-center truncate">{col.name}</h4>
+                    <h4 className="font-semibold text-center truncate">
+                      {col.name}
+                    </h4>
                     <div className="space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground capitalize">
+                          Data type
+                        </span>
+                        <span className="font-mono font-medium">
+                          {col.dtype}
+                        </span>
+                      </div>
                       {Object.entries(col.description).map(([key, value]) => (
                         <div key={key} className="flex justify-between">
                           <span className="text-muted-foreground capitalize">

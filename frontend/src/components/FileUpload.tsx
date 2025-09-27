@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAppState, useAppDispatch } from "@/hooks/useAppContext";
 import { uploadDataset } from "@/api/apiService";
+import { chartConfigs } from "@/config/chartConfig";
 
 import { X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
 
     dispatch({ type: "UPLOAD_START" });
     try {
-      const response = await uploadDataset(description, file);
+      const response = await uploadDataset(description, file, chartConfigs);
       dispatch({
         type: "UPLOAD_SUCCESS",
         payload: { sessionId: response.session_id, data: response.data },

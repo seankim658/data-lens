@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from . import logger
+from core.config import settings
 from domains.lenses.service import load_lenses_into_cache
 from domains.session.service import initialize_session_store
 from domains.analysis.service import initialize_llm_provider
@@ -11,7 +12,7 @@ from domains.analysis.service import initialize_llm_provider
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handles startup and shutdown."""
-    logger.setup_logging()
+    logger.setup_logging(settings.LOG_LEVEL)
     logging.info("Application starting up...")
 
     app.state.session_store = initialize_session_store()

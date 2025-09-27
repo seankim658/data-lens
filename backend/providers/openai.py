@@ -1,6 +1,7 @@
+import logging
 import openai
 from openai.types.chat import ChatCompletionMessageParam
-from typing import List, Dict, Any, cast
+from typing import List, Dict, Any, cast, AsyncGenerator
 from enum import Enum
 
 from core.config import settings
@@ -8,7 +9,7 @@ from providers.base import LLMProvider, MAX_TOKENS
 
 
 class OpenAIModel(Enum):
-    GPT5MINI = "gpt-5-mini"
+    GPT5MINI = "gpt-4.1-mini"
 
 
 class OpenAIProvider(LLMProvider):
@@ -22,13 +23,42 @@ class OpenAIProvider(LLMProvider):
 
     async def generate_explanation(self, messages: List[Dict[str, Any]]) -> str:
         """Calls the OpenAI Chat Completions API with the given messages."""
+        logging.debug(f"Messages for chat:\n{messages}")
         try:
-            typed_messages = cast(List[ChatCompletionMessageParam], messages)
+            typed_messages = self._convert_messages(messages)
             response = await self.client.chat.completions.create(
-                model=self.model, messages=typed_messages, max_tokens=MAX_TOKENS
+                model=self.model,
+                messages=typed_messages,
+                max_completion_tokens=MAX_TOKENS,
             )
+            logging.debug(f"LLM Response:\n{response}")
             content = response.choices[0].message.content
             return content.strip() if content else ""
         except Exception as e:
-            print(f"Error calling OpenAI API: {e}")
+            logging.error(f"Error calling OpenAI API: {e}")
             raise
+
+    async def stream_explanation(
+        self, messages: List[Dict[str, Any]]
+    ) -> AsyncGenerator[str, None]:
+        logging.debug(f"Streaming messages for chat:\n{messages}")
+        try:
+            typed_messages = self._convert_messages(messages)
+            stream = await self.client.chat.completions.create(
+                model=self.model,
+                messages=typed_messages,
+                max_completion_tokens=MAX_TOKENS,
+                stream=True,
+            )
+            async for chunk in stream:
+                content = chunk.choices[0].delta.content or ""
+                yield content
+        except Exception as e:
+            logging.error(f"Error streaming from OpenAI API: {e}")
+            raise
+
+    def _convert_messages(
+        self, messages: List[Dict[str, Any]]
+    ) -> List[ChatCompletionMessageParam]:
+        """Convert the list of dictionary messages to openai format."""
+        return cast(List[ChatCompletionMessageParam], messages)
