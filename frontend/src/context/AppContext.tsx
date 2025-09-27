@@ -43,7 +43,8 @@ export type AppAction =
     }
   | { type: "ANALYZE_FAILURE"; payload: string }
   | { type: "CHAT_START" }
-  | { type: "CHAT_SUCCESS"; payload: ChatMessage }
+  | { type: "APPEND_CHAT_CHUNK"; payload: string }
+  | { type: "CHAT_SUCCESS" }
   | { type: "CHAT_FAILURE"; payload: string }
   | { type: "ADD_USER_MESSAGE"; payload: ChatMessage }
   | { type: "RESET_ERROR" };
@@ -74,20 +75,44 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case "ANALYZE_FAILURE":
       return { ...state, isLoading: false, error: action.payload };
     case "CHAT_START":
-      return { ...state, isChatLoading: true, error: null };
+      return {
+        ...state,
+        isChatLoading: true,
+        error: null,
+        chatHistory: [...state.chatHistory, { role: "assistant", content: "" }],
+      };
     case "ADD_USER_MESSAGE":
       return {
         ...state,
         chatHistory: [...state.chatHistory, action.payload],
       };
+    case "APPEND_CHAT_CHUNK": {
+      const lastMessage = state.chatHistory[state.chatHistory.length - 1];
+      if (lastMessage?.role === "assistant") {
+        const updatedHistory = [...state.chatHistory];
+        updatedHistory[updatedHistory.length - 1] = {
+          ...lastMessage,
+          content: lastMessage.content + action.payload,
+        };
+        return { ...state, chatHistory: updatedHistory };
+      }
+      // TODO : should handle better (but this shouldn't happen)
+      return state;
+    }
     case "CHAT_SUCCESS":
       return {
         ...state,
         isChatLoading: false,
-        chatHistory: [...state.chatHistory, action.payload],
       };
     case "CHAT_FAILURE":
-      return { ...state, isChatLoading: false, error: action.payload };
+      return {
+        ...state,
+        isChatLoading: false,
+        error: action.payload,
+        chatHistory: state.chatHistory.filter(
+          (m) => m.content !== "" || m.role !== "assistant",
+        ),
+      };
     case "RESET_ERROR":
       return { ...state, error: null };
     default:

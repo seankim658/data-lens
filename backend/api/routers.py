@@ -1,6 +1,7 @@
 import logging
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request, Depends
+from fastapi.responses import StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
@@ -59,24 +60,40 @@ async def chat_with_assistant(
     if not session_data:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    try:
-        ai_response = await get_chat_response(
-            llm_provider, session_data, payload.message
-        )
+    async def stream_generator():
+        full_response = ""
+        try:
+            async for chunk in get_chat_response(
+                llm_provider, session_data, payload.message
+            ):
+                if chunk:
+                    full_response += chunk
+                    lines = [f"data: {line}" for line in chunk.split("\n")]
+                    formatted_sse_message = "\n".join(lines)
+                    yield f"{formatted_sse_message}\n\n"
 
-        session_data.chat_history.append(
-            ChatMessage(role="user", content=payload.message)
-        )
-        session_data.chat_history.append(
-            ChatMessage(role="assistant", content=ai_response)
-        )
-        session_store.save_data(payload.session_id, session_data.model_dump_json())
+            user_msg = ChatMessage(role="user", content=payload.message)
+            logging.debug(f"New user message:\n{user_msg}")
+            session_data.chat_history.append(user_msg)
+            assistant_msg = ChatMessage(role="assistant", content=full_response)
+            logging.debug(f"New assistant message:\n{assistant_msg}")
+            session_data.chat_history.append(assistant_msg)
 
-        return {"response": ai_response}
+            session_store.save_data(payload.session_id, session_data.model_dump_json())
+            logging.info(
+                f"Finished streaming and saved history for session {payload.session_id}"
+            )
 
-    except Exception as e:
-        logging.error(f"Internal server error during chat: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An internal server error occurred")
+        except Exception as e:
+            logging.error(
+                f"Internal server error during chat stream: {e}", exc_info=True
+            )
+            # TODO : figure out something better here later
+            yield "An error occurred.\n\n"
+        finally:
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(stream_generator(), media_type="text/event-stream")
 
 
 @router.post("/analyze")
@@ -110,6 +127,7 @@ async def analyze_interaction(
             ai_summary=explanation,
             correctness=correctness,
         )
+        logging.debug(f"New analysis record:\n{analysis_record}")
         session_data.analysis_log.append(analysis_record)
         session_store.save_data(payload.session_id, session_data.model_dump_json())
 

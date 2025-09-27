@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any
+from typing import AsyncGenerator, List, Dict, Any
 
 from .prompts import CHAT_SYSTEM_PROMPT
 from domains.session.models import SessionData
@@ -8,7 +8,7 @@ from providers.base import LLMProvider
 
 async def get_chat_response(
     llm_provider: LLMProvider, session_data: SessionData, user_message: str
-) -> str:
+) -> AsyncGenerator[str, None]:
     """Generates a conversational response from the LLM, maintaining chat history."""
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": CHAT_SYSTEM_PROMPT},
@@ -22,8 +22,8 @@ async def get_chat_response(
     messages.append({"role": "user", "content": user_message})
 
     try:
-        ai_response_content = await llm_provider.generate_explanation(messages)
-        return ai_response_content
+        async for chunk in llm_provider.stream_explanation(messages):
+            yield chunk
     except Exception as e:
         logging.error(f"Error during chat response generation: {e}", exc_info=True)
-        return "Sorry, I encountered an error. Please try again in a moment."
+        yield "Sorry, I encountered an error. Please try again in a moment."

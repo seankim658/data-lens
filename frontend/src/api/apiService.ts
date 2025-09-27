@@ -1,9 +1,12 @@
+import type { Dispatch } from "react";
+import type { AppAction } from "@/context/AppContext";
+import { fetchEventSource } from "@microsoft/fetch-event-source";
 import type {
   InteractionPayload,
   UploadResponse,
   AnalyzeResponse,
   ChatResponse,
-} from "../types/api";
+} from "@/types/api";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -64,22 +67,48 @@ export const analyzeInteraction = async (
  * @param message - The user's message string.
  * @returns A promise that resolves to the AI's response.
  */
-export const sendChatMessage = async (
+export const sendChatMessage = (
   sessionId: string,
   message: string,
-): Promise<ChatResponse> => {
-  const response = await fetch(`${API_BASE_URL}/api/chat/query`, {
+  dispatch: Dispatch<AppAction>,
+): void => {
+  fetchEventSource(`${API_BASE_URL}/api/chat/query`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ session_id: sessionId, message }),
+
+    async onopen(response) {
+      if (response.ok) {
+        return;
+      } else if (
+        response.status >= 400 &&
+        response.status < 500 &&
+        response.status !== 429
+      ) {
+        const errData = await response.json();
+        throw new Error(errData.detail || "An error occurred");
+      } else {
+        throw new Error("An error occurred");
+      }
+    },
+
+    onmessage(event) {
+      if (event.data === "[DONE]") {
+        return;
+      }
+      dispatch({ type: "APPEND_CHAT_CHUNK", payload: event.data });
+    },
+
+    onclose() {
+      dispatch({ type: "CHAT_SUCCESS" });
+    },
+
+    onerror(err) {
+      console.error("EventSource failed:", err);
+      dispatch({ type: "CHAT_FAILURE", payload: (err as Error).message });
+      throw err;
+    },
   });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || "Failed to send message.");
-  }
-
-  return response.json();
 };

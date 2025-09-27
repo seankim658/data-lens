@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { useAppState, useAppDispatch } from "@/hooks/useAppContext";
 import { sendChatMessage } from "@/api/apiService";
 import { Bot, User, CornerDownLeft, X, LoaderCircle } from "lucide-react";
@@ -28,18 +29,12 @@ export function ChatSidebar({ onClose }: ChatSidebarProps) {
 
     const userMessage = { role: "user" as const, content: input };
     dispatch({ type: "ADD_USER_MESSAGE", payload: userMessage });
-    dispatch({ type: "CHAT_START" });
-    setInput("");
 
-    try {
-      const response = await sendChatMessage(sessionId, input);
-      dispatch({
-        type: "CHAT_SUCCESS",
-        payload: { role: "assistant", content: response.response },
-      });
-    } catch (err) {
-      dispatch({ type: "CHAT_FAILURE", payload: (err as Error).message });
-    }
+    dispatch({ type: "CHAT_START" });
+
+    sendChatMessage(sessionId, input, dispatch);
+
+    setInput("");
   };
 
   return (
@@ -80,7 +75,20 @@ export function ChatSidebar({ onClose }: ChatSidebarProps) {
                   : "bg-primary text-primary-foreground",
               )}
             >
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              {isChatLoading &&
+              msg.role === "assistant" &&
+              msg.content === "" &&
+              index === chatHistory.length - 1 ? (
+                <LoaderCircle className="w-5 h-5 animate-spin" />
+              ) : (
+                <div
+                  className={cn("prose prose-sm dark:prose-invert", {
+                    "prose-invert": msg.role === "user",
+                  })}
+                >
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              )}
             </div>
             {msg.role === "user" && (
               <div className="p-2 rounded-full bg-muted">
@@ -89,16 +97,6 @@ export function ChatSidebar({ onClose }: ChatSidebarProps) {
             )}
           </div>
         ))}
-        {isChatLoading && (
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-full bg-primary/10 text-primary">
-              <Bot className="w-5 h-5" />
-            </div>
-            <div className="max-w-xs md:max-w-md p-3 rounded-lg text-left bg-muted">
-              <LoaderCircle className="w-5 h-5 animate-spin" />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Input */}
