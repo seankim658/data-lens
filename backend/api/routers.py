@@ -8,6 +8,8 @@ from .util import get_session_store, get_llm_provider
 from session_store.base import SessionStore
 from providers.base import LLMProvider
 
+from domains.chat.models import ChatPayload
+from domains.chat.service import get_chat_response
 from domains.lenses.models import LensConfig, EvaluationContext
 from domains.lenses.service import (
     get_all_lenses_from_cache,
@@ -17,6 +19,7 @@ from domains.lenses.service import (
 from domains.analysis.models import InteractionPayload
 from domains.analysis.service import get_ai_explanation
 from domains.session.service import create_and_store_session, get_session_data
+from domains.session.models import ChatMessage, AnalysisRecord, SessionData
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -43,6 +46,39 @@ async def upload_dataset(
         raise HTTPException(status_code=400, detail=f"Failed to process file: {e}")
 
 
+@router.post("/chat/query")
+@limiter.limit("30/minute")
+async def chat_with_assistant(
+    request: Request,
+    payload: ChatPayload,
+    session_store: SessionStore = Depends(get_session_store),
+    llm_provider: LLMProvider = Depends(get_llm_provider),
+):
+    logging.info(f"Received chat message for session {payload.session_id}")
+    session_data = get_session_data(session_store, payload.session_id)
+    if not session_data:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    try:
+        ai_response = await get_chat_response(
+            llm_provider, session_data, payload.message
+        )
+
+        session_data.chat_history.append(
+            ChatMessage(role="user", content=payload.message)
+        )
+        session_data.chat_history.append(
+            ChatMessage(role="assistant", content=ai_response)
+        )
+        session_store.save_data(payload.session_id, session_data.model_dump_json())
+
+        return {"response": ai_response}
+
+    except Exception as e:
+        logging.error(f"Internal server error during chat: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred")
+
+
 @router.post("/analyze")
 @limiter.limit("10/minute")
 async def analyze_interaction(
@@ -57,10 +93,28 @@ async def analyze_interaction(
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        explanation = await get_ai_explanation(
+        explanation, correctness = await get_ai_explanation(
             llm_provider, payload, session_data.summary
         )
-        return {"explanation": explanation}
+        lens_config = get_all_lenses_from_cache()
+        # Should probably do this better later
+        lens_name = next(
+            (lens.name for lens in lens_config if lens.id == payload.tool),
+            "Unknown Lens",
+        )
+
+        analysis_record = AnalysisRecord(
+            lens_id=payload.tool,
+            lens_name=lens_name,
+            user_hypothesis=payload.user_hypothesis or "N/A",
+            ai_summary=explanation,
+            correctness=correctness,
+        )
+        session_data.analysis_log.append(analysis_record)
+        session_store.save_data(payload.session_id, session_data.model_dump_json())
+
+        return {"explanation": explanation, "correctness": correctness}
+
     except LensNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

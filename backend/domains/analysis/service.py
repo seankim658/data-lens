@@ -1,8 +1,9 @@
+from inspect import classify_class_attrs
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Literal, Tuple
 
 from .models import InteractionPayload
-from .prompts import DEFAULT_SYSTEM_PROMPT, BASE_PROMPT_TEMPLATE
+from .prompts import LENS_SYSTEM_PROMPT, BASE_PROMPT_TEMPLATE
 from ..lenses.service import get_lens_by_id
 from providers.base import LLMProvider
 from providers.openai import OpenAIProvider
@@ -22,7 +23,7 @@ def initialize_llm_provider() -> LLMProvider:
 
 async def get_ai_explanation(
     llm_provider: LLMProvider, payload: InteractionPayload, dataset_summary: str
-) -> str:
+) -> Tuple[str, Literal["correct", "partially_correct", "incorrect"]]:
     """Generates an explanation from the LLM based on the user's lens interaction."""
     lens_config = get_lens_by_id(payload.tool)
     lens_prompt_template = lens_config.lens_prompt
@@ -36,7 +37,7 @@ async def get_ai_explanation(
     )
 
     messages: List[Dict[str, Any]] = [
-        {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
+        {"role": "system", "content": LENS_SYSTEM_PROMPT},
         {
             "role": "user",
             "content": [
@@ -58,7 +59,22 @@ async def get_ai_explanation(
     ]
 
     try:
-        return await llm_provider.generate_explanation(messages)
+        raw_response = await llm_provider.generate_explanation(messages)
+
+        parts = raw_response.split(":", 1)
+        classification_str = parts[0].strip().lower()
+        explanation = parts[1].strip() if len(parts) > 1 else raw_response
+
+        correctness: Literal["correct", "partially_correct", "incorrect"] = "incorrect"
+        if classification_str == "correct":
+            correctness = "correct"
+        elif classification_str == "partiall_correct":
+            correctness = "partially_correct"
+
+        # TODO : should we do a retry prompt on response structure failure
+
+        return explanation, correctness
+
     except Exception as e:
         logging.error(f"Error during AI explanation generation: {e}", exc_info=True)
-        return "Sorry, I encountered an error while analyzing your action."
+        return "Sorry, I encountered an error while analyzing your action.", "incorrect"
