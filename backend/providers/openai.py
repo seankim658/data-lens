@@ -25,7 +25,7 @@ class OpenAIProvider(LLMProvider):
         try:
             typed_messages = cast(List[ChatCompletionMessageParam], messages)
             response = await self.client.chat.completions.create(
-                model=self.model, messages=typed_messages, max_tokens=MAX_TOKENS
+                model=self.model, messages=typed_messages, max_completion_tokens=MAX_TOKENS
             )
             content = response.choices[0].message.content
             return content.strip() if content else ""
