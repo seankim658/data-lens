@@ -5,8 +5,8 @@ import type {
   InteractionPayload,
   UploadResponse,
   AnalyzeResponse,
-  ChatResponse,
 } from "@/types/api";
+import type { ChartConfig } from "@/config/chartConfig";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -19,10 +19,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export const uploadDataset = async (
   description: string,
   file: File,
+  supportedCharts: ChartConfig[],
 ): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append("description", description);
   formData.append("file", file);
+  formData.append("supported_charts_json", JSON.stringify(supportedCharts));
 
   const response = await fetch(`${API_BASE_URL}/api/upload`, {
     method: "POST",

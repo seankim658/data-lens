@@ -60,7 +60,10 @@ def _create_column_descriptions(describe_df: pl.DataFrame) -> Dict[str, Dict[str
 
 
 def create_and_store_session(
-    session_store: SessionStore, description: str, file_contents: bytes
+    session_store: SessionStore,
+    description: str,
+    file_contents: bytes,
+    supported_charts: List[Dict[str, Any]],
 ) -> Tuple[str, SessionData]:
     """Processes a dataset, creates session data, and stores it."""
     session_id = str(uuid.uuid4())
@@ -75,9 +78,11 @@ def create_and_store_session(
     ]
 
     summary_str = _format_dataset_summary(description, df.height, columns)
-    session_data = SessionData(summary=summary_str, columns=columns)
+    session_data = SessionData(summary=summary_str, columns=columns, supported_charts=supported_charts)
     session_data_str = session_data.model_dump_json()
-    logging.debug(f"Started Session:\n\tID: {session_id}\n\tSession Data: {session_data_str}")
+    logging.debug(
+        f"Started Session:\n\tID: {session_id}\n\tSession Data: {session_data_str}"
+    )
     session_store.save_data(session_id, session_data_str)
 
     return session_id, session_data

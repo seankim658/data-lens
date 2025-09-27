@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request, Depends
 from fastapi.responses import StreamingResponse
@@ -20,7 +21,7 @@ from domains.lenses.service import (
 from domains.analysis.models import InteractionPayload
 from domains.analysis.service import get_ai_explanation
 from domains.session.service import create_and_store_session, get_session_data
-from domains.session.models import ChatMessage, AnalysisRecord, SessionData
+from domains.session.models import ChatMessage, AnalysisRecord
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -32,13 +33,15 @@ async def upload_dataset(
     request: Request,
     description: str = Form(...),
     file: UploadFile = File(...),
+    supported_charts_json: str = Form(...),
     session_store: SessionStore = Depends(get_session_store),
 ):
     logging.info(f"Recieved upload request for file: {file.filename}")
     try:
         contents = await file.read()
+        supported_charts = json.loads(supported_charts_json)
         session_id, session_data = create_and_store_session(
-            session_store, description, contents
+            session_store, description, contents, supported_charts
         )
         logging.info(f"Successfully created session {session_id}")
         return {"session_id": session_id, "data": session_data}
