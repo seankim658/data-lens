@@ -55,10 +55,10 @@ export interface UploadResponse {
 }
 
 export interface AnalyzeResponse {
-  explanation: string;
+  response: string;
   correctness: "correct" | "partially_correct" | "incorrect";
 }
 
 export interface ChatResponse {
-  explanation: string;
+  response: string;
 }

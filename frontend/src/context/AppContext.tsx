@@ -38,7 +38,7 @@ export type AppAction =
   | { type: "UPLOAD_FAILURE"; payload: string }
   | { type: "ANALYZE_START" }
   | {
-      type: "ANALYZE_SUCESS";
+      type: "ANALYZE_SUCCESS";
       payload: { explanation: string; record: AnalysisRecord };
     }
   | { type: "ANALYZE_FAILURE"; payload: string }
@@ -64,7 +64,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return { ...state, isLoading: false, error: action.payload };
     case "ANALYZE_START":
       return { ...state, isLoading: true, error: null, aiResponse: null };
-    case "ANALYZE_SUCESS":
+    case "ANALYZE_SUCCESS":
       return {
         ...state,
         isLoading: false,

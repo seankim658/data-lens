@@ -35,7 +35,7 @@ export function ChatSidebar({ onClose }: ChatSidebarProps) {
       const response = await sendChatMessage(sessionId, input);
       dispatch({
         type: "CHAT_SUCCESS",
-        payload: { role: "assistant", content: response.explanation },
+        payload: { role: "assistant", content: response.response },
       });
     } catch (err) {
       dispatch({ type: "CHAT_FAILURE", payload: (err as Error).message });
