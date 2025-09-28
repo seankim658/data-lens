@@ -5,6 +5,7 @@ import type {
   InteractionPayload,
   UploadResponse,
   AnalyzeResponse,
+  SessionData,
 } from "@/types/api";
 import type { ChartConfig } from "@/config/chartConfig";
 
@@ -113,4 +114,25 @@ export const sendChatMessage = (
       throw err;
     },
   });
+};
+
+/**
+ * Retrieves session data from the backend using a session ID.
+ * @param sessionId - The ID of the session to fetch.
+ * @returns A promise that resolves to the session data.
+ */
+export const getSessionData = async (
+  sessionId: string,
+): Promise<SessionData> => {
+  const response = await fetch(`${API_BASE_URL}/api/session/${sessionId}`);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Session not found on the server.");
+    }
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch session data");
+  }
+
+  return response.json();
 };

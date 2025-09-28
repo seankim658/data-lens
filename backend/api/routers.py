@@ -21,7 +21,7 @@ from domains.lenses.service import (
 from domains.analysis.models import InteractionPayload
 from domains.analysis.service import get_ai_explanation
 from domains.session.service import create_and_store_session, get_session_data
-from domains.session.models import ChatMessage, AnalysisRecord
+from domains.session.models import ChatMessage, AnalysisRecord, SessionData
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -161,3 +161,17 @@ async def list_lenses(request: Request):
     """Returns a list of all available lens configurations from the cache."""
     logging.debug("Fetching all available lens configurations")
     return get_all_lenses_from_cache()
+
+
+@router.get("/session/{session_id}", response_model=SessionData)
+async def get_session(
+    request: Request,
+    session_id: str,
+    session_store: SessionStore = Depends(get_session_store),
+):
+    """Retrieves the data for a given session ID."""
+    logging.debug(f"Attempting to retrieve session {session_id}")
+    session_data = get_session_data(session_store, session_id)
+    if not session_data:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session_data

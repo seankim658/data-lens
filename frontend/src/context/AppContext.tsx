@@ -1,6 +1,12 @@
-import { useReducer } from "react";
+import { useEffect, useReducer } from "react";
 import { AppStateContext, AppDispatchContext } from "../hooks/useAppContext";
-import type { ColumnInfo, ChatMessage, AnalysisRecord } from "@/types/api";
+import type {
+  ColumnInfo,
+  ChatMessage,
+  AnalysisRecord,
+  SessionData,
+} from "@/types/api";
+import { getSessionData } from "@/api/apiService";
 
 export interface AppState {
   sessionId: string | null;
@@ -14,11 +20,13 @@ export interface AppState {
   analysisLog: AnalysisRecord[];
 }
 
+const SESSION_STORAGE_KEY = "dataLensSessionID";
+
 const initialState: AppState = {
-  sessionId: null,
+  sessionId: sessionStorage.getItem(SESSION_STORAGE_KEY),
   datasetSummary: null,
   columns: null,
-  isLoading: false,
+  isLoading: !!sessionStorage.getItem(SESSION_STORAGE_KEY),
   error: null,
   aiResponse: null,
   isChatLoading: false,
@@ -30,12 +38,13 @@ export type AppAction =
   | { type: "UPLOAD_START" }
   | {
       type: "UPLOAD_SUCCESS";
-      payload: {
-        sessionId: string;
-        data: { summary: string; columns: ColumnInfo[] };
-      };
+      payload: { sessionId: string; data: SessionData };
     }
   | { type: "UPLOAD_FAILURE"; payload: string }
+  | { type: "SESSION_FETCH_START" }
+  | { type: "SESSION_FETCH_SUCCESS"; payload: SessionData }
+  | { type: "SESSION_FETCH_FAILURE"; payload: string }
+  | { type: "RESET_SESSION" }
   | { type: "ANALYZE_START" }
   | {
       type: "ANALYZE_SUCCESS";
@@ -54,13 +63,38 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case "UPLOAD_START":
       return { ...state, isLoading: true, error: null };
     case "UPLOAD_SUCCESS":
+      sessionStorage.setItem(SESSION_STORAGE_KEY, action.payload.sessionId);
       return {
         ...state,
         isLoading: false,
         sessionId: action.payload.sessionId,
         datasetSummary: action.payload.data.summary,
         columns: action.payload.data.columns,
+        chatHistory: action.payload.data.chat_history,
+        analysisLog: action.payload.data.analysis_log,
       };
+    case "SESSION_FETCH_START":
+      return { ...state, isLoading: true, error: null };
+    case "SESSION_FETCH_SUCCESS":
+      return {
+        ...state,
+        isLoading: false,
+        datasetSummary: action.payload.summary,
+        columns: action.payload.columns,
+        chatHistory: action.payload.chat_history,
+        analysisLog: action.payload.analysis_log,
+      };
+    case "SESSION_FETCH_FAILURE":
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return {
+        ...initialState,
+        sessionId: null,
+        isLoading: false,
+        error: action.payload,
+      };
+    case "RESET_SESSION":
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      return { ...initialState, sessionId: null, isLoading: false };
     case "UPLOAD_FAILURE":
       return { ...state, isLoading: false, error: action.payload };
     case "ANALYZE_START":
@@ -124,6 +158,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
+
+  useEffect(() => {
+    const rehydrateSession = async () => {
+      const savedSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY);
+      if (savedSessionId) {
+        dispatch({ type: "SESSION_FETCH_START" });
+        try {
+          const data = await getSessionData(savedSessionId);
+          dispatch({ type: "SESSION_FETCH_SUCCESS", payload: data });
+        } catch (err) {
+          console.error("Failed to rehydrate session:", err);
+          dispatch({
+            type: "SESSION_FETCH_FAILURE",
+            payload: (err as Error).message,
+          });
+        }
+      }
+    };
+    rehydrateSession();
+  }, [dispatch]);
 
   return (
     <AppStateContext.Provider value={state}>

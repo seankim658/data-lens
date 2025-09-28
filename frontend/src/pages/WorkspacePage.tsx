@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useAppState } from "@/hooks/useAppContext";
+import { useSessionStorageState } from "@/hooks/useSessionStorageState";
 import { FileUpload } from "@/components/FileUpload";
 import { ChartSelection } from "@/components/ChartSelection";
 import { ChartSetup } from "@/components/ChartSetup";
@@ -34,14 +35,23 @@ const ChartView = ({
 
 export const WorkspacePage = () => {
   const { sessionId } = useAppState();
-  const [step, setStep] = useState<WorkspaceStep>("chartSelection");
-  const [chartType, setChartType] = useState<string | null>(null);
-  const [columnMapping, setColumnMapping] = useState<ColumnMapping | null>(
+  const [step, setStep] = useSessionStorageState<WorkspaceStep>(
+    "workspaceStep",
+    "chartSelection",
+  );
+  const [chartType, setChartType] = useSessionStorageState<string | null>(
+    "workspaceChartType",
     null,
   );
+  const [columnMapping, setColumnMapping] =
+    useSessionStorageState<ColumnMapping | null>(
+      "workspaceColumnMapping",
+      null,
+    );
 
   const handleChartSelect = (type: string) => {
     setChartType(type);
+    setColumnMapping(null);
     setStep("columnMapping");
   };
 
@@ -61,9 +71,12 @@ export const WorkspacePage = () => {
       case "chartSelection":
         return <ChartSelection onSelectChart={handleChartSelect} />;
       case "columnMapping":
+        if (!chartType) {
+          return <div>Loading...</div>;
+        }
         return (
           <ChartSetup
-            chartType={chartType!}
+            chartType={chartType}
             onBack={handleBackToSelection}
             onGenerate={handleColumnMapping}
           />
@@ -75,6 +88,5 @@ export const WorkspacePage = () => {
     }
   };
 
-  // Show FileUpload if no session, otherwise show the current step of the workflow
   return sessionId ? renderContent() : <FileUpload />;
 };
