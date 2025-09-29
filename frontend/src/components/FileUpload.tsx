@@ -22,7 +22,7 @@ interface FileUploadProps {
   onClose?: () => void;
 }
 
-export const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
+export function FileUpload({ onClose }: FileUploadProps) {
   const { isLoading, error } = useAppState();
   const dispatch = useAppDispatch();
   const [description, setDescription] = useState("");
@@ -145,4 +145,4 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onClose }) => {
       </Card>
     </div>
   );
-};
+}
