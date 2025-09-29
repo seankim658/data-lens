@@ -69,6 +69,8 @@ def create_and_store_session(
     session_id = str(uuid.uuid4())
     df = pl.read_csv(BytesIO(file_contents))
 
+    chart_data = df.to_dicts()
+
     describe_df = df.describe()
     all_descriptions = _create_column_descriptions(describe_df)
 
@@ -78,7 +80,12 @@ def create_and_store_session(
     ]
 
     summary_str = _format_dataset_summary(description, df.height, columns)
-    session_data = SessionData(summary=summary_str, columns=columns, supported_charts=supported_charts)
+    session_data = SessionData(
+        summary=summary_str,
+        columns=columns,
+        chart_data=chart_data,
+        supported_charts=supported_charts,
+    )
     session_data_str = session_data.model_dump_json()
     logging.debug(
         f"Started Session:\n\tID: {session_id}\n\tSession Data: {session_data_str}"

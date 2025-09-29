@@ -32,6 +32,7 @@ class SessionData(BaseModel):
 
     summary: str
     columns: List[ColumnInfo]
+    chart_data: List[Dict[str, Any]] = []
     supported_charts: List[Dict[str, Any]] = []
     chat_history: List[ChatMessage] = []
     analysis_log: List[AnalysisRecord] = []

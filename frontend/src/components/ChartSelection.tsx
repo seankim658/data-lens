@@ -10,9 +10,7 @@ interface ChartSelectionProps {
   onSelectChart: (chartType: string) => void;
 }
 
-export const ChartSelection: React.FC<ChartSelectionProps> = ({
-  onSelectChart,
-}) => {
+export function ChartSelection({ onSelectChart }: ChartSelectionProps) {
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="text-center mb-8">
@@ -41,4 +39,4 @@ export const ChartSelection: React.FC<ChartSelectionProps> = ({
       </div>
     </div>
   );
-};
+}

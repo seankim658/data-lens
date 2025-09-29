@@ -1,3 +1,5 @@
+/* eslint-disable  @typescript-eslint/no-explicit-any */
+
 import { useEffect, useReducer } from "react";
 import { AppStateContext, AppDispatchContext } from "../hooks/useAppContext";
 import type {
@@ -12,6 +14,7 @@ export interface AppState {
   sessionId: string | null;
   datasetSummary: string | null;
   columns: ColumnInfo[] | null;
+  chartData: Record<string, any>[] | null;
   isLoading: boolean;
   error: string | null;
   aiResponse: string | null;
@@ -26,6 +29,7 @@ const initialState: AppState = {
   sessionId: sessionStorage.getItem(SESSION_STORAGE_KEY),
   datasetSummary: null,
   columns: null,
+  chartData: null,
   isLoading: !!sessionStorage.getItem(SESSION_STORAGE_KEY),
   error: null,
   aiResponse: null,
@@ -70,6 +74,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         sessionId: action.payload.sessionId,
         datasetSummary: action.payload.data.summary,
         columns: action.payload.data.columns,
+        chartData: action.payload.data.chart_data,
         chatHistory: action.payload.data.chat_history,
         analysisLog: action.payload.data.analysis_log,
       };
@@ -81,6 +86,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         isLoading: false,
         datasetSummary: action.payload.summary,
         columns: action.payload.columns,
+        chartData: action.payload.chart_data,
         chatHistory: action.payload.chat_history,
         analysisLog: action.payload.analysis_log,
       };
@@ -89,6 +95,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return {
         ...initialState,
         sessionId: null,
+        chartData: null,
         isLoading: false,
         error: action.payload,
       };
