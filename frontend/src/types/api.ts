@@ -45,6 +45,7 @@ export interface AnalysisRecord {
 export interface SessionData {
   summary: string;
   columns: ColumnInfo[];
+  chart_data: Record<string, any>[];
   chat_history: ChatMessage[];
   analysis_log: AnalysisRecord[];
 }

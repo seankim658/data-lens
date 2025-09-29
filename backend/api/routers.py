@@ -1,5 +1,6 @@
 import logging
 import json
+from os import stat
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request, Depends
 from fastapi.responses import StreamingResponse
@@ -23,6 +24,8 @@ from domains.analysis.service import get_ai_explanation
 from domains.session.service import create_and_store_session, get_session_data
 from domains.session.models import ChatMessage, AnalysisRecord, SessionData
 
+MAX_FILE_SIZE = 30 * 1024 * 1024
+
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
@@ -37,6 +40,16 @@ async def upload_dataset(
     session_store: SessionStore = Depends(get_session_store),
 ):
     logging.info(f"Recieved upload request for file: {file.filename}")
+
+    if not file.size:
+        raise HTTPException(status_code=400, detail="Could not determine file size.")
+
+    if file.size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File size exceeds the limit of {MAX_FILE_SIZE / 1024 / 1024} MB.",
+        )
+
     try:
         contents = await file.read()
         supported_charts = json.loads(supported_charts_json)

@@ -11,82 +11,92 @@ import { type AxisId, chartConfigMap } from "@/config/chartConfig";
 import { GripVertical, X, Info } from "lucide-react";
 import { cn, isNumeric } from "@/lib/utils";
 
-const ColumnPillGroup: React.FC<{
+interface ColumnPillGroupProps {
   columns: ColumnInfo[];
   onDragStart: (name: string) => void;
   onDragEnd: () => void;
   draggedColumn: string | null;
   emptyText: string;
-}> = ({ columns, onDragStart, onDragEnd, draggedColumn, emptyText }) => (
-  <div className="flex flex-wrap items-center justify-center gap-3 p-2 min-h-[5.5rem] rounded-md bg-muted/30">
-    {columns.length > 0 ? (
-      columns.map((col) => (
-        <div
-          key={col.name}
-          draggable
-          onDragStart={() => onDragStart(col.name)}
-          onDragEnd={onDragEnd}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 text-sm font-medium border rounded-md cursor-grab bg-background transition-all hover:border-primary hover:bg-primary/10 hover:text-primary active:cursor-grabbing active:shadow-lg active:scale-105",
-            { "opacity-0": draggedColumn === col.name },
-          )}
-        >
-          <div className="flex items-center gap-2 overflow-hidden">
-            <GripVertical className="w-4 h-4 text-muted-foreground" />
-            <span className="truncate" title={col.name}>
-              {col.name}
-            </span>
-          </div>
+}
 
-          {col.description && (
-            <div>
-              <HoverCard>
-                <HoverCardTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 rounded-full"
-                  >
-                    <Info className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-48" side="top" align="center">
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-center truncate">
-                      {col.name}
-                    </h4>
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground capitalize">
-                          Data type
-                        </span>
-                        <span className="font-mono font-medium">
-                          {col.dtype}
-                        </span>
-                      </div>
-                      {Object.entries(col.description).map(([key, value]) => (
-                        <div key={key} className="flex justify-between">
+function ColumnPillGroup({
+  columns,
+  onDragStart,
+  onDragEnd,
+  draggedColumn,
+  emptyText,
+}: ColumnPillGroupProps) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-3 p-2 min-h-[5.5rem] rounded-md bg-muted/30">
+      {columns.length > 0 ? (
+        columns.map((col) => (
+          <div
+            key={col.name}
+            draggable
+            onDragStart={() => onDragStart(col.name)}
+            onDragEnd={onDragEnd}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 text-sm font-medium border rounded-md cursor-grab bg-background transition-all hover:border-primary hover:bg-primary/10 hover:text-primary active:cursor-grabbing active:shadow-lg active:scale-105",
+              { "opacity-0": draggedColumn === col.name },
+            )}
+          >
+            <div className="flex items-center gap-2 overflow-hidden">
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
+              <span className="truncate" title={col.name}>
+                {col.name}
+              </span>
+            </div>
+
+            {col.description && (
+              <div>
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 rounded-full"
+                    >
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-48" side="top" align="center">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-center truncate">
+                        {col.name}
+                      </h4>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
                           <span className="text-muted-foreground capitalize">
-                            {key.replace(/_/g, " ")}
+                            Data type
                           </span>
                           <span className="font-mono font-medium">
-                            {String(value)}
+                            {col.dtype}
                           </span>
                         </div>
-                      ))}
+                        {Object.entries(col.description).map(([key, value]) => (
+                          <div key={key} className="flex justify-between">
+                            <span className="text-muted-foreground capitalize">
+                              {key.replace(/_/g, " ")}
+                            </span>
+                            <span className="font-mono font-medium">
+                              {String(value)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
-            </div>
-          )}
-        </div>
-      ))
-    ) : (
-      <p className="text-sm text-muted-foreground">{emptyText}</p>
-    )}
-  </div>
-);
+                  </HoverCardContent>
+                </HoverCard>
+              </div>
+            )}
+          </div>
+        ))
+      ) : (
+        <p className="text-sm text-muted-foreground">{emptyText}</p>
+      )}
+    </div>
+  );
+}
 
 type ColumnMapping = Record<AxisId, string | null>;
 
@@ -96,11 +106,7 @@ interface ChartSetupProps {
   onGenerate: (mapping: ColumnMapping) => void;
 }
 
-export const ChartSetup: React.FC<ChartSetupProps> = ({
-  chartType,
-  onBack,
-  onGenerate,
-}) => {
+export function ChartSetup({ chartType, onBack, onGenerate }: ChartSetupProps) {
   const { columns } = useAppState();
   const requiredAxesConfig = chartConfigMap.get(chartType)?.axes || [];
   const initialMapping = Object.fromEntries(
@@ -314,4 +320,4 @@ export const ChartSetup: React.FC<ChartSetupProps> = ({
       </form>
     </div>
   );
-};
+}
