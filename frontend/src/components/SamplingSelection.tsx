@@ -30,7 +30,7 @@ export function SamplingSelection({
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-semibold">Dataset Too Large</h2>
+        <h2 className="text-2xl font-semibold">Dataset Sampling</h2>
         <p className="text-muted-foreground">
           Your dataset is very large, which may slow down rendering and
           potentially crash the browser tab. Please select a sampling method to
