@@ -1,3 +1,5 @@
+/* eslint-disable  @typescript-eslint/no-explicit-any */
+
 import type { Dispatch } from "react";
 import type { AppAction } from "@/context/AppContext";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
@@ -8,6 +10,7 @@ import type {
   SessionData,
 } from "@/types/api";
 import type { ChartConfig } from "@/config/chartConfig";
+import type { ColumnMapping } from "@/types/charts";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -135,4 +138,53 @@ export const getSessionData = async (
   }
 
   return response.json();
+};
+
+/**
+ * Fetches processed chart data from the backend.
+ */
+export const getChartData = async (
+  sessionId: string,
+  chartType: string,
+  mapping: ColumnMapping,
+  samplingMethod: string | null,
+): Promise<Record<string, any>[]> => {
+  const response = await fetch(`${API_BASE_URL}/api/chart-data`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      chart_type: chartType,
+      mapping,
+      samplingMethod: samplingMethod,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch chart data");
+  }
+
+  return response.json();
+};
+
+/**
+ * Resets the session.
+ * @param sessionId The ID of the session to reset.
+ */
+export const resetSession = async (sessionId: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/api/session/reset`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to reset session");
+  }
 };

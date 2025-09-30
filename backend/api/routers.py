@@ -1,6 +1,5 @@
 import logging
 import json
-from os import stat
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request, Depends
 from fastapi.responses import StreamingResponse
@@ -21,8 +20,19 @@ from domains.lenses.service import (
 )
 from domains.analysis.models import InteractionPayload
 from domains.analysis.service import get_ai_explanation
-from domains.session.service import create_and_store_session, get_session_data
-from domains.session.models import ChatMessage, AnalysisRecord, SessionData
+from domains.session.service import (
+    create_and_store_session,
+    get_processed_chart_data,
+    get_session_data,
+    clear_session,
+)
+from domains.session.models import (
+    ChatMessage,
+    AnalysisRecord,
+    SessionData,
+    ChartDataPayload,
+    SessionStateUpdatePayload,
+)
 
 MAX_FILE_SIZE = 30 * 1024 * 1024
 
@@ -30,6 +40,7 @@ router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 
+# TODO : add some security checks before ingesting file
 @router.post("/upload", response_model=Dict[str, Any])
 @limiter.limit("5/minute")
 async def upload_dataset(
@@ -63,6 +74,27 @@ async def upload_dataset(
         raise HTTPException(status_code=400, detail=f"Failed to process file: {e}")
 
 
+@router.post("/session/state", response_model=SessionData)
+async def update_session_state(
+    request: Request,
+    payload: SessionStateUpdatePayload,
+    session_store: SessionStore = Depends(get_session_store),
+):
+    """Updates the state of a given session (e.g., current step, chart selection)."""
+    logging.info(f"Updating state for session {payload.session_id}")
+    session_data = get_session_data(session_store, payload.session_id)
+    if not session_data:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # Update fields if they are provided in the payload
+    update_data = payload.model_dump(exclude_unset=True, exclude={"session_id"})
+    session_data = session_data.model_copy(update=update_data)
+
+    session_store.save_data(payload.session_id, session_data.model_dump_json())
+    logging.debug(f"Successfully updated session state for {payload.session_id}")
+    return session_data
+
+
 @router.post("/chat/query")
 @limiter.limit("30/minute")
 async def chat_with_assistant(
@@ -80,7 +112,7 @@ async def chat_with_assistant(
         full_response = ""
         try:
             async for chunk in get_chat_response(
-                llm_provider, session_data, payload.message
+                llm_provider, session_data, payload.message, payload.step_context
             ):
                 if chunk:
                     full_response += chunk
@@ -176,6 +208,26 @@ async def list_lenses(request: Request):
     return get_all_lenses_from_cache()
 
 
+@router.post("/chart-data")
+async def get_chart_data(
+    payload: ChartDataPayload, session_store: SessionStore = Depends(get_session_store)
+):
+    """Processes and returns chart data based on user selections."""
+    session_data = get_session_data(session_store, payload.session_id)
+    if not session_data:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    try:
+        chart_data = get_processed_chart_data(
+            session_data, payload.chart_type, payload.mapping, payload.sampling_method
+        )
+        return chart_data
+
+    except Exception as e:
+        logging.error(f"Failed to get chart data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to process chart data")
+
+
 @router.get("/session/{session_id}", response_model=SessionData)
 async def get_session(
     request: Request,
@@ -188,3 +240,22 @@ async def get_session(
     if not session_data:
         raise HTTPException(status_code=404, detail="Session not found")
     return session_data
+
+
+@router.post("/session/reset")
+async def reset_session(
+    request: Request,
+    payload: Dict[str, str],
+    session_store: SessionStore = Depends(get_session_store),
+):
+    """Clears a user's session and deletes their uploaded data file."""
+    session_id = payload.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required.")
+
+    try:
+        clear_session(session_store, session_id)
+        return {"message": f"Session {session_id} has been reset."}
+    except Exception as e:
+        logging.error(f"Failed to reset session {session_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to reset session.")

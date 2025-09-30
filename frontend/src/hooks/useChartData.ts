@@ -1,41 +1,64 @@
+/* eslint-disable  @typescript-eslint/no-explicit-any */
+
 import { useAppState } from "./useAppContext";
 import type { ColumnMapping } from "@/types/charts";
-import { useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { getChartData } from "@/api/apiService";
 
 /**
- * Adapter that provides chart data to UI components.
- *
- * Right now for simplicity's sake, the backend sends the
- * full data ack to the client once. We will limit file
- * uploads to 30MB. Hook is designed to decouple components
- * from the data fetching strategy, so if an API driven
- * architecture is needed later, will just need to update
- * this hook.
+ * Provides chart data to UI components.
  */
-export const useChartData = (mapping: ColumnMapping | null) => {
-  const { chartData: fullDataset } = useAppState();
+export const useChartData = (
+  chartType: string | null,
+  mapping: ColumnMapping | null,
+  samplingMethod: string | null,
+) => {
+  const { sessionId } = useAppState();
+  const [data, setData] = useState<Record<string, any>[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const data = useMemo(() => {
-    if (!fullDataset || !mapping) {
-      return null;
+  const memoizedMapping = useMemo(
+    () => (mapping ? JSON.stringify(mapping) : null),
+    [mapping],
+  );
+
+  useEffect(() => {
+    if (!sessionId || !memoizedMapping || !chartType) {
+      return;
     }
 
-    const xKey = mapping.x ?? mapping.category;
-    const yKey = mapping.y ?? mapping.value;
+    const parsedMapping = JSON.parse(memoizedMapping) as ColumnMapping;
+
+    const xKey = parsedMapping.x ?? parsedMapping.category;
+    const yKey = parsedMapping.y ?? parsedMapping.value;
 
     if (!xKey || !yKey) {
-      return null;
+      setData(null);
+      return;
     }
 
-    return fullDataset.map((row) => ({
-      x: row[xKey],
-      y: row[yKey],
-    }));
-  }, [fullDataset, mapping]);
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const fetchedData = await getChartData(
+          sessionId,
+          chartType,
+          parsedMapping,
+          samplingMethod,
+        );
 
-  return {
-    data,
-    isLoading: !data && !!fullDataset,
-    error: null,
-  };
+        setData(fetchedData);
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [sessionId, chartType, memoizedMapping, samplingMethod]);
+
+  return { data, isLoading, error };
 };

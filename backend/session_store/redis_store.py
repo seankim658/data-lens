@@ -13,3 +13,6 @@ class RedisSessionStore(SessionStore):
     def get_data(self, session_id: str) -> str | None:
         summary = self._client.get(session_id)
         return str(summary) if summary else None
+
+    def delete_data(self, session_id: str):
+        self._client.delete(session_id)

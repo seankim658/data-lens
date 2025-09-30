@@ -24,6 +24,8 @@ export interface ChartConfig {
   name: string;
   description: string;
   icon: LucideIcon;
+  sampling_threshold: number;
+  supported_sampling_methods: { id: string; name: string; description: string }[];
   axes: AxisConfig[];
 }
 
@@ -33,6 +35,15 @@ export const chartConfigs: ChartConfig[] = [
     name: "Bar Chart",
     description: "Compare values across categories.",
     icon: ChartColumn,
+    sampling_threshold: 50000,
+    supported_sampling_methods: [
+      {
+        id: "top_n",
+        name: "Top N Categories",
+        description:
+          "Show the most significant categories and group the rest into 'Other'.",
+      },
+    ],
     axes: [
       {
         id: "category",
@@ -42,8 +53,7 @@ export const chartConfigs: ChartConfig[] = [
       {
         id: "value",
         title: "Value (Y-Axis)",
-        description:
-          "Numeric value that determines the height of each bar.",
+        description: "Numeric value that determines the height of each bar.",
       },
     ],
   },
@@ -52,6 +62,20 @@ export const chartConfigs: ChartConfig[] = [
     name: "Line Chart",
     description: "Show a trend over time.",
     icon: LineChart,
+    sampling_threshold: 10000,
+    supported_sampling_methods: [
+      {
+        id: "systematic",
+        name: "Systematic Sampling",
+        description:
+          "Select every Nth data point to reduce density while preserving the overall trend.",
+      },
+      {
+        id: "random",
+        name: "Random Sampling",
+        description: "Select a random subset of data points.",
+      },
+    ],
     axes: [
       {
         id: "x",
@@ -71,6 +95,15 @@ export const chartConfigs: ChartConfig[] = [
     name: "Pie Chart",
     description: "Display parts of a whole.",
     icon: PieChart,
+    sampling_threshold: 50,
+    supported_sampling_methods: [
+      {
+        id: "top_n",
+        name: "Top N Slices",
+        description:
+          "Show the largest slices and group the rest into an 'Other' slice for clarity.",
+      },
+    ],
     axes: [
       {
         id: "category",
@@ -90,6 +123,20 @@ export const chartConfigs: ChartConfig[] = [
     name: "Scatter Plot",
     description: "Show the relationship between two variables.",
     icon: ScatterChart,
+    sampling_threshold: 20000,
+    supported_sampling_methods: [
+      {
+        id: "systematic",
+        name: "Systematic Sampling",
+        description: "Select every Nth data point to reduce density.",
+      },
+      {
+        id: "random",
+        name: "Random Sampling",
+        description:
+          "Select a random subset of data points to see the general distribution.",
+      },
+    ],
     axes: [
       {
         id: "x",
