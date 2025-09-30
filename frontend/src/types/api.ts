@@ -1,5 +1,7 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
+import type { ColumnMapping } from "@/types/charts";
+
 export interface LensControl {
   type: string;
   target: string;
@@ -48,6 +50,13 @@ export interface SessionData {
   row_count: number;
   chat_history: ChatMessage[];
   analysis_log: AnalysisRecord[];
+}
+
+export interface SessionStateUpdatePayload {
+  session_id: string;
+  current_step?: string;
+  selected_chart_type?: string | null;
+  column_mapping?: ColumnMapping | null;
 }
 
 export interface UploadResponse {

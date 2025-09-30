@@ -7,7 +7,7 @@ import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { cn } from "@/lib/utils";
 
-export function ChatSidebar() {
+export function ChatSidebar({ currentStep }: { currentStep: string }) {
   const { sessionId, chatHistory, isChatLoading } = useAppState();
   const dispatch = useAppDispatch();
   const [input, setInput] = useState("");
@@ -28,7 +28,7 @@ export function ChatSidebar() {
 
     dispatch({ type: "CHAT_START" });
 
-    sendChatMessage(sessionId, input, dispatch);
+    sendChatMessage(sessionId, input, currentStep, dispatch);
 
     setInput("");
   };

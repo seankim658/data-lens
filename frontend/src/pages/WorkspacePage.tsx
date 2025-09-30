@@ -1,4 +1,4 @@
-import { useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { useAppState } from "@/hooks/useAppContext";
 import { FileUpload } from "@/components/FileUpload";
 import { ChartSelection } from "@/components/ChartSelection";
@@ -8,6 +8,16 @@ import { useChartData } from "@/hooks/useChartData";
 import type { ColumnMapping } from "@/types/charts";
 import { chartConfigMap } from "@/config/chartConfig";
 import { SamplingSelection } from "@/components/SamplingSelection";
+import { updateSessionState, resetSession } from "@/api/apiService";
+import { ChatSidebar } from "@/components/ChatSidebar";
+import { useAppDispatch } from "@/hooks/useAppContext";
+import { SiteHeader } from "@/components/ui/site-header";
+import { useNavigate } from "react-router-dom";
+import {
+  ResizablePanel,
+  ResizablePanelGroup,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 
 type WorkspaceStep =
   | "chartSelection"
@@ -78,13 +88,29 @@ const workspaceReducer = (
 
 export const WorkspacePage = () => {
   const { sessionId, row_count } = useAppState();
+  const appDispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [state, dispatch] = useReducer(workspaceReducer, initialState);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const {
     data: chartData,
     isLoading: isChartDataLoading,
     error: chartDataError,
   } = useChartData(state.chartType, state.columnMapping, state.samplingMethod);
+
+  useEffect(() => {
+    if (sessionId) {
+      updateSessionState({
+        session_id: sessionId,
+        current_step: state.step,
+        selected_chart_type: state.chartType,
+        column_mapping: state.columnMapping,
+      }).catch((err) => {
+        console.error("Failed to sync session state:", err);
+      });
+    }
+  }, [sessionId, state.step, state.chartType, state.columnMapping]);
 
   const handleChartSelect = (type: string) => {
     dispatch({ type: "SELECT_CHART", payload: type });
@@ -111,6 +137,22 @@ export const WorkspacePage = () => {
 
   const handleBack = () => {
     dispatch({ type: "GO_BACK" });
+  };
+
+  const handleReset = async () => {
+    // TODO : make better confirm later
+    if (
+      sessionId &&
+      window.confirm("Are you sure you want to reset your session?")
+    ) {
+      try {
+        await resetSession(sessionId);
+        appDispatch({ type: "RESET_SESSION" });
+        navigate("/");
+      } catch (err) {
+        console.error("Failed to reset session:", err);
+      }
+    }
   };
 
   const renderContent = () => {
@@ -162,5 +204,34 @@ export const WorkspacePage = () => {
     }
   };
 
-  return sessionId ? renderContent() : <FileUpload />;
+  if (!sessionId) {
+    return <FileUpload />;
+  }
+
+  return (
+    <div className="flex flex-col h-screen">
+      <SiteHeader
+        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        isSidebarEnabled={!!sessionId}
+        isSidebarOpen={isSidebarOpen}
+        onReset={handleReset}
+      />
+      <ResizablePanelGroup direction="horizontal" className="flex-grow">
+        <ResizablePanel defaultSize={isSidebarOpen ? 70 : 100} minSize={30}>
+          <div className="container mx-auto py-10 px-4 md:px-8 h-full overflow-y-auto">
+            {renderContent()}
+          </div>
+        </ResizablePanel>
+
+        {isSidebarOpen && (
+          <>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
+              <ChatSidebar currentStep={state.step} />
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+    </div>
+  );
 };

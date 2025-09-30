@@ -85,10 +85,12 @@ async def update_session_state(
     session_data = get_session_data(session_store, payload.session_id)
     if not session_data:
         raise HTTPException(status_code=404, detail="Session not found")
+    logging.debug(f"Previous:\n{session_data}")
 
     # Update fields if they are provided in the payload
     update_data = payload.model_dump(exclude_unset=True, exclude={"session_id"})
     session_data = session_data.model_copy(update=update_data)
+    logging.debug(f"New:\n{session_data}")
 
     session_store.save_data(payload.session_id, session_data.model_dump_json())
     logging.debug(f"Successfully updated session state for {payload.session_id}")

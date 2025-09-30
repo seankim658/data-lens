@@ -24,7 +24,7 @@ politely state that you can only help with topics related to data literacy.
 
 
 STEP_SPECIFIC_PROMPTS = {
-    "chart_selection": """
+    "chartSelection": """
         The user is currently on the 'Chart Selection' step.
         - Help them choose a chart from the "AVAILABLE_CHARTS" lsit based on their goal.
         - Analyze their quetsion and dataset to recommend a chart type that fits their data and question (e.g., don't suggest a line chart if there's no time-series data).
@@ -34,7 +34,7 @@ STEP_SPECIFIC_PROMPTS = {
         The user's dataset is large, and they are now on the 'Sampling' step for the '{chart_name}' chart.
         - Help them choose between the available sampling methods for this chart. Explain what each method does in simple terms.
         """,
-    "column_mapping": """
+    "columnMapping": """
         The user has chosen a '{chart_name}' chart and is now on the 'Column Mapping' step. They need to drag and drop columns onto the chart axes.
         - Guide them on which columns from their dataset might be suitable for the '{axes_description}' axes.
         - Use the dataset context to give specific column name suggestions.

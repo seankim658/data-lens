@@ -11,6 +11,7 @@ def _build_chat_system_prompt(
     session_data: SessionData, step_context: Optional[str]
 ) -> str:
     """Formats the system prompt with charts, lenses, and step-specific context."""
+    logging.debug(f"Building chat prompt:\n\tStep: {step_context}")
     chart_str = "\n".join(
         [
             f"- **{c.get('name', 'N/A')}:** {c.get('description', 'N/A')}"

@@ -1,38 +1,22 @@
 import { Button } from "@/components/ui/button";
 import Logo from "@/assets/logo.svg?react";
 import { MessageSquarePlus, MessageSquareX, RotateCcw } from "lucide-react";
-import { useAppDispatch, useAppState } from "@/hooks/useAppContext";
-import { resetSession } from "@/api/apiService";
-import { useNavigate } from "react-router-dom";
+import { useAppState } from "@/hooks/useAppContext";
 
 interface SiteHeaderProps {
   onToggleSidebar: () => void;
   isSidebarEnabled: boolean;
   isSidebarOpen: boolean;
+  onReset: () => void;
 }
 
 export function SiteHeader({
   onToggleSidebar,
   isSidebarEnabled,
   isSidebarOpen,
+  onReset,
 }: SiteHeaderProps) {
   const { sessionId } = useAppState();
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-
-  const handleReset = async () => {
-    // TODO : add better confirm
-    if (sessionId && window.confirm("Are you sure?")) {
-      try {
-        await resetSession(sessionId);
-        dispatch({ type: "RESET_SESSION" });
-        navigate("/");
-      } catch (err) {
-        console.error("Failed to reset session:", err);
-        // TODO : handle
-      }
-    }
-  };
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b">
@@ -56,7 +40,7 @@ export function SiteHeader({
             </a>
           </Button>
           {sessionId && (
-            <Button variant="outline" size="sm" onClick={handleReset}>
+            <Button variant="outline" size="sm" onClick={onReset}>
               <RotateCcw className="w-4 h-4" />
               Reset
             </Button>

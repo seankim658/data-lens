@@ -8,6 +8,7 @@ import type {
   UploadResponse,
   AnalyzeResponse,
   SessionData,
+  SessionStateUpdatePayload,
 } from "@/types/api";
 import type { ChartConfig } from "@/config/chartConfig";
 import type { ColumnMapping } from "@/types/charts";
@@ -71,11 +72,14 @@ export const analyzeInteraction = async (
  * Sends a chat message to the backend.
  * @param sessionId - The unique session ID.
  * @param message - The user's message string.
+ * @param stepContext - The current workflow step of the user.
+ * @param dispatch - The app's dispatch function for streaming updates.
  * @returns A promise that resolves to the AI's response.
  */
 export const sendChatMessage = (
   sessionId: string,
   message: string,
+  stepContext: string,
   dispatch: Dispatch<AppAction>,
 ): void => {
   fetchEventSource(`${API_BASE_URL}/api/chat/query`, {
@@ -83,7 +87,11 @@ export const sendChatMessage = (
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ session_id: sessionId, message }),
+    body: JSON.stringify({
+      session_id: sessionId,
+      message,
+      stepContext: stepContext,
+    }),
 
     async onopen(response) {
       if (response.ok) {
@@ -172,7 +180,7 @@ export const getChartData = async (
 
 /**
  * Resets the session.
- * @param sessionId The ID of the session to reset.
+ * @param sessionId - The ID of the session to reset.
  */
 export const resetSession = async (sessionId: string): Promise<void> => {
   const response = await fetch(`${API_BASE_URL}/api/session/reset`, {
@@ -186,5 +194,26 @@ export const resetSession = async (sessionId: string): Promise<void> => {
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || "Failed to reset session");
+  }
+};
+
+/**
+ * Updates the session state.
+ * @param payload - The state update payload.
+ */
+export const updateSessionState = async (
+  payload: SessionStateUpdatePayload,
+): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/api/session/state`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to update session state");
   }
 };
