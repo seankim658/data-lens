@@ -91,7 +91,7 @@ export const WorkspacePage = () => {
   const appDispatch = useAppDispatch();
   const navigate = useNavigate();
   const [state, dispatch] = useReducer(workspaceReducer, initialState);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const {
     data: chartData,
