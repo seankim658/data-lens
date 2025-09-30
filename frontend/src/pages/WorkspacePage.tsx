@@ -1,37 +1,13 @@
-import { useEffect } from "react";
 import { useAppState } from "@/hooks/useAppContext";
 import { useSessionStorageState } from "@/hooks/useSessionStorageState";
 import { FileUpload } from "@/components/FileUpload";
 import { ChartSelection } from "@/components/ChartSelection";
 import { ChartSetup } from "@/components/ChartSetup";
+import { DynamicChartView } from "@/components/DynamicChartView";
+import { useChartData } from "@/hooks/useChartData";
+import type { ColumnMapping } from "@/types/charts";
 
 type WorkspaceStep = "chartSelection" | "columnMapping" | "visualization";
-type ColumnMapping = Record<string, string | null>;
-
-// TODO : PLACEHOLDER for the main visualization component
-const ChartView = ({
-  chartType,
-  mapping,
-}: {
-  chartType: string;
-  mapping: ColumnMapping;
-}) => (
-  <div className="text-center p-8 border rounded-lg">
-    <h2 className="text-2xl font-semibold">Initial Chart Generated</h2>
-    <p className="text-muted-foreground">
-      Ready to begin investigation with the Data Lens toolkit.
-    </p>
-    <div className="mt-6 p-4 bg-secondary rounded-md text-left text-sm font-mono">
-      <p>
-        <strong>Chart Type:</strong> {chartType}
-      </p>
-      <p>
-        <strong>Column Mapping:</strong>
-      </p>
-      <pre className="mt-2">{JSON.stringify(mapping, null, 2)}</pre>
-    </div>
-  </div>
-);
 
 export const WorkspacePage = () => {
   const { sessionId } = useAppState();
@@ -48,6 +24,9 @@ export const WorkspacePage = () => {
       "workspaceColumnMapping",
       null,
     );
+
+  const { data: chartData, isLoading: isChartDataLoading } =
+    useChartData(columnMapping);
 
   const handleChartSelect = (type: string) => {
     setChartType(type);
@@ -82,7 +61,21 @@ export const WorkspacePage = () => {
           />
         );
       case "visualization":
-        return <ChartView chartType={chartType!} mapping={columnMapping!} />;
+        // TODO : Handle these more gracefully later
+        if (isChartDataLoading) return <div>Loading Chart...</div>;
+        if (!chartType || !columnMapping || !chartData) {
+          return <div>Preparing visualization...</div>;
+        }
+
+        console.log("PROPS:", { chartType, columnMapping, chartData });
+
+        return (
+          <DynamicChartView
+            chartType={chartType}
+            mapping={columnMapping}
+            data={chartData}
+          />
+        );
       default:
         return <ChartSelection onSelectChart={handleChartSelect} />;
     }

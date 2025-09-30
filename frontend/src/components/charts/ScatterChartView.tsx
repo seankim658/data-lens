@@ -26,8 +26,8 @@ export function ScatterChartView({ data, mapping }: ChartViewProps) {
   return (
     <ScatterChart>
       <CartesianGrid />
-      <XAxis type="number" dataKey={xKey} name={xKey} />
-      <YAxis type="number" dataKey={yKey} name={yKey} />
+      <XAxis type="number" dataKey="x" name={xKey} />
+      <YAxis type="number" dataKey="y" name={yKey} />
       <Tooltip content={<CustomTooltip />} />
       <Legend />
       <Scatter name="Data Points" data={data} fill="var(--color-chart-4)" />

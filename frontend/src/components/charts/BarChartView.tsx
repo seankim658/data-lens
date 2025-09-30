@@ -29,7 +29,6 @@ export function BarChartView({ data, mapping }: ChartViewProps) {
       <XAxis dataKey="x" name={categoryKey} />
       <YAxis />
       <Tooltip content={<CustomTooltip />} />
-      <Tooltip />
       <Legend />
       <Bar dataKey="y" name={valueKey} fill="var(--color-chart-1)" />
     </BarChart>

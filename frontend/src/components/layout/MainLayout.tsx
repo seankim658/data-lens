@@ -21,7 +21,7 @@ export const MainLayout = () => {
         isSidebarOpen={isSidebarOpen}
       />
       <ResizablePanelGroup direction="horizontal" className="flex-grow">
-        <ResizablePanel defaultSize={70} minSize={30}>
+        <ResizablePanel defaultSize={isSidebarOpen ? 70 : 100} minSize={30}>
           <main className="flex-grow container mx-auto py-16 md:py-10 px-4 md:px-8">
             <Outlet />
           </main>

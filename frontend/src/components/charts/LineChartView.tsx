@@ -26,13 +26,13 @@ export function LineChartView({ data, mapping }: ChartViewProps) {
   return (
     <LineChart data={data}>
       <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey={xKey} name={xKey} />
+      <XAxis dataKey="x" name={xKey} />
       <YAxis />
       <Tooltip content={<CustomTooltip />} />
       <Legend />
       <Line
         type="monotone"
-        dataKey={yKey}
+        dataKey="y"
         name={yKey}
         stroke="var(--color-chart-2)"
         activeDot={{ r: 8 }}

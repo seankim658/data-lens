@@ -1,7 +1,6 @@
 import { useAppState } from "./useAppContext";
-import type { AxisId } from "@/config/chartConfig";
-
-type ColumnMapping = Record<AxisId, string | null>;
+import type { ColumnMapping } from "@/types/charts";
+import { useMemo } from "react";
 
 /**
  * Adapter that provides chart data to UI components.
@@ -16,10 +15,27 @@ type ColumnMapping = Record<AxisId, string | null>;
 export const useChartData = (mapping: ColumnMapping | null) => {
   const { chartData: fullDataset } = useAppState();
 
-  // TODO : Memoize later
+  const data = useMemo(() => {
+    if (!fullDataset || !mapping) {
+      return null;
+    }
+
+    const xKey = mapping.x ?? mapping.category;
+    const yKey = mapping.y ?? mapping.value;
+
+    if (!xKey || !yKey) {
+      return null;
+    }
+
+    return fullDataset.map((row) => ({
+      x: row[xKey],
+      y: row[yKey],
+    }));
+  }, [fullDataset, mapping]);
+
   return {
-    data: fullDataset,
-    isLoading: false,
+    data,
+    isLoading: !data && !!fullDataset,
     error: null,
   };
 };
