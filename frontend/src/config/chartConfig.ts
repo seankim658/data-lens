@@ -6,6 +6,8 @@ import {
   type LucideProps,
 } from "lucide-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
+import type { SamplingMethods } from "@/config/samplingConfig";
+import type { AggregationMethods } from "./aggregationConfig";
 
 export type AxisId = "x" | "y" | "category" | "value";
 
@@ -25,7 +27,8 @@ export interface ChartConfig {
   description: string;
   icon: LucideIcon;
   sampling_threshold: number;
-  supported_sampling_methods: { id: string; name: string; description: string }[];
+  supported_sampling_methods: SamplingMethods[];
+  supported_aggregations?: AggregationMethods[];
   axes: AxisConfig[];
 }
 
@@ -36,14 +39,8 @@ export const chartConfigs: ChartConfig[] = [
     description: "Compare values across categories.",
     icon: ChartColumn,
     sampling_threshold: 50000,
-    supported_sampling_methods: [
-      {
-        id: "top_n",
-        name: "Top N Categories",
-        description:
-          "Show the most significant categories and group the rest into 'Other'.",
-      },
-    ],
+    supported_sampling_methods: ["top_n"],
+    supported_aggregations: ["mean", "sum", "count"],
     axes: [
       {
         id: "category",
@@ -63,19 +60,7 @@ export const chartConfigs: ChartConfig[] = [
     description: "Show a trend over time.",
     icon: LineChart,
     sampling_threshold: 10000,
-    supported_sampling_methods: [
-      {
-        id: "systematic",
-        name: "Systematic Sampling",
-        description:
-          "Select every Nth data point to reduce density while preserving the overall trend.",
-      },
-      {
-        id: "random",
-        name: "Random Sampling",
-        description: "Select a random subset of data points.",
-      },
-    ],
+    supported_sampling_methods: ["systematic", "random"],
     axes: [
       {
         id: "x",
@@ -96,14 +81,8 @@ export const chartConfigs: ChartConfig[] = [
     description: "Display parts of a whole.",
     icon: PieChart,
     sampling_threshold: 50,
-    supported_sampling_methods: [
-      {
-        id: "top_n",
-        name: "Top N Slices",
-        description:
-          "Show the largest slices and group the rest into an 'Other' slice for clarity.",
-      },
-    ],
+    supported_sampling_methods: ["top_n"],
+    supported_aggregations: ["mean", "sum", "count"],
     axes: [
       {
         id: "category",
@@ -124,19 +103,7 @@ export const chartConfigs: ChartConfig[] = [
     description: "Show the relationship between two variables.",
     icon: ScatterChart,
     sampling_threshold: 20000,
-    supported_sampling_methods: [
-      {
-        id: "systematic",
-        name: "Systematic Sampling",
-        description: "Select every Nth data point to reduce density.",
-      },
-      {
-        id: "random",
-        name: "Random Sampling",
-        description:
-          "Select a random subset of data points to see the general distribution.",
-      },
-    ],
+    supported_sampling_methods: ["systematic", "random"],
     axes: [
       {
         id: "x",

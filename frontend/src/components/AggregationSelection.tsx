@@ -7,34 +7,33 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  samplingConfigMap,
-  type SamplingConfig,
-  type SamplingMethods,
-} from "@/config/samplingConfig";
+  aggregationConfigMap,
+  type AggregationConfig,
+  type AggregationMethods,
+} from "@/config/aggregationConfig";
 import { cn } from "@/lib/utils";
 
-interface SamplingSelectionProps {
-  supportedMethods: SamplingMethods[];
-  onSelection: (method: SamplingMethods) => void;
-  onContinue: () => void;
+interface AggregationSelectionProps {
+  supportedMethods: AggregationMethods[];
+  onSelection: (method: AggregationMethods) => void;
   onBack: () => void;
+  onContinue: () => void;
 }
 
-export function SamplingSelection({
+export function AggregationSelection({
   supportedMethods,
   onSelection,
-  onContinue,
   onBack,
-}: SamplingSelectionProps) {
-  const [selectedMethod, setSelectedMethod] = useState<SamplingMethods | null>(
-    null,
-  );
+  onContinue,
+}: AggregationSelectionProps) {
+  const [selectedMethod, setSelectedMethod] =
+    useState<AggregationMethods | null>(null);
 
-  const methodsWithConfig: SamplingConfig[] = supportedMethods
-    .map((method) => samplingConfigMap.get(method))
-    .filter((config): config is SamplingConfig => !!config);
+  const methodsWithConfig: AggregationConfig[] = supportedMethods
+    .map((method) => aggregationConfigMap.get(method))
+    .filter((config): config is AggregationConfig => !!config);
 
-  const handleSelect = (methodId: SamplingMethods) => {
+  const handleSelect = (methodId: AggregationMethods) => {
     setSelectedMethod(methodId);
     onSelection(methodId);
   };
@@ -42,13 +41,13 @@ export function SamplingSelection({
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-semibold">Dataset Sampling</h2>
+        <h2 className="text-2xl font-semibold">Choose an Aggregation Method</h2>
         <p className="text-muted-foreground">
-          Your dataset is large. To ensure performance, please select a sampling
-          method to reduce the number of data points.
+          How should we group your data? This is a crucial step in summarizing
+          large datasets.
         </p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {methodsWithConfig.map((method, index) => (
           <Card
             key={method.id}
@@ -77,7 +76,7 @@ export function SamplingSelection({
           Back
         </Button>
         <Button onClick={onContinue} disabled={!selectedMethod}>
-          Continue to Chart
+          Continue
         </Button>
       </div>
     </div>

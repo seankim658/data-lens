@@ -1,18 +1,21 @@
 import { useEffect, useReducer, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/hooks/useAppContext";
+import { updateSessionState, resetSession } from "@/api/apiService";
+import { useAppDispatch } from "@/hooks/useAppContext";
 import { FileUpload } from "@/components/FileUpload";
 import { ChartSelection } from "@/components/ChartSelection";
 import { ChartSetup } from "@/components/ChartSetup";
 import { DynamicChartView } from "@/components/DynamicChartView";
+import { ChatSidebar } from "@/components/ChatSidebar";
+import { SiteHeader } from "@/components/ui/site-header";
 import { useChartData } from "@/hooks/useChartData";
 import type { ColumnMapping } from "@/types/charts";
 import { chartConfigMap } from "@/config/chartConfig";
 import { SamplingSelection } from "@/components/SamplingSelection";
-import { updateSessionState, resetSession } from "@/api/apiService";
-import { ChatSidebar } from "@/components/ChatSidebar";
-import { useAppDispatch } from "@/hooks/useAppContext";
-import { SiteHeader } from "@/components/ui/site-header";
-import { useNavigate } from "react-router-dom";
+import { AggregationSelection } from "@/components/AggregationSelection";
+import type { AggregationMethods } from "@/config/aggregationConfig";
+import type { SamplingMethods } from "@/config/samplingConfig";
 import {
   ResizablePanel,
   ResizablePanelGroup,
@@ -22,28 +25,33 @@ import {
 type WorkspaceStep =
   | "chartSelection"
   | "columnMapping"
-  | "sampling"
+  | "aggregationSelection"
+  | "samplingSelection"
   | "visualization";
 
 interface WorkspaceState {
   step: WorkspaceStep;
   chartType: string | null;
   columnMapping: ColumnMapping | null;
+  aggregationMethod: AggregationMethods | null;
   samplingMethod: string | null;
 }
 
 type WorkspaceAction =
   | { type: "SELECT_CHART"; payload: string }
   | { type: "SET_MAPPING"; payload: ColumnMapping }
+  | { type: "GO_TO_AGGREGATION" }
+  | { type: "SELECT_AGGREGATION"; payload: AggregationMethods }
   | { type: "GO_TO_SAMPLING" }
-  | { type: "SELECT_SAMPLING"; payload: string }
-  | { type: "SKIP_SAMPLING" }
+  | { type: "SELECT_SAMPLING"; payload: SamplingMethods }
+  | { type: "GO_TO_VISUALIZATION" }
   | { type: "GO_BACK" };
 
 const initialState: WorkspaceState = {
   step: "chartSelection",
   chartType: null,
   columnMapping: null,
+  aggregationMethod: null,
   samplingMethod: null,
 };
 
@@ -58,26 +66,35 @@ const workspaceReducer = (
         step: "columnMapping",
         chartType: action.payload,
         columnMapping: null,
+        aggregationMethod: null,
         samplingMethod: null,
       };
     case "SET_MAPPING":
       return { ...state, columnMapping: action.payload };
+    case "GO_TO_AGGREGATION":
+      return { ...state, step: "aggregationSelection" };
+    case "SELECT_AGGREGATION":
+      return { ...state, aggregationMethod: action.payload };
     case "GO_TO_SAMPLING":
-      return { ...state, step: "sampling" };
+      return { ...state, step: "samplingSelection" };
     case "SELECT_SAMPLING":
       return {
         ...state,
-        step: "visualization",
         samplingMethod: action.payload,
       };
-    case "SKIP_SAMPLING":
-      return {
-        ...state,
-        step: "visualization",
-        samplingMethod: null,
-      };
+    case "GO_TO_VISUALIZATION":
+      return { ...state, step: "visualization" };
     case "GO_BACK":
-      if (state.step === "sampling" || state.step === "visualization") {
+      if (state.step === "visualization" || state.step === "samplingSelection") {
+        const config = state.chartType
+          ? chartConfigMap.get(state.chartType)
+          : null;
+        if (config?.supported_aggregations) {
+          return { ...state, step: "aggregationSelection" };
+        }
+        return { ...state, step: "columnMapping", columnMapping: null };
+      }
+      if (state.step === "aggregationSelection") {
         return { ...state, step: "columnMapping", columnMapping: null };
       }
       return { ...initialState };
@@ -97,7 +114,12 @@ export const WorkspacePage = () => {
     data: chartData,
     isLoading: isChartDataLoading,
     error: chartDataError,
-  } = useChartData(state.chartType, state.columnMapping, state.samplingMethod);
+  } = useChartData(
+    state.chartType,
+    state.columnMapping,
+    state.aggregationMethod,
+    state.samplingMethod,
+  );
 
   useEffect(() => {
     if (sessionId) {
@@ -120,19 +142,39 @@ export const WorkspacePage = () => {
     dispatch({ type: "SET_MAPPING", payload: mapping });
     const config = state.chartType ? chartConfigMap.get(state.chartType) : null;
 
-    if (config && row_count && row_count > config.sampling_threshold) {
+    // Check if aggregation is required
+    if (config?.supported_aggregations) {
+      dispatch({ type: "GO_TO_AGGREGATION" });
+    }
+    // Check if sampling is required
+    else if (config && row_count && row_count > config.sampling_threshold) {
       dispatch({ type: "GO_TO_SAMPLING" });
-    } else {
-      dispatch({ type: "SKIP_SAMPLING" });
+    }
+    // Go straigh to chart
+    else {
+      dispatch({ type: "GO_TO_VISUALIZATION" });
     }
   };
 
-  const handleSelectSampling = (method: string) => {
+  const handleAggregationSelect = (method: AggregationMethods) => {
+    dispatch({ type: "SELECT_AGGREGATION", payload: method });
+  };
+
+  const handleAggregationContinue = () => {
+    const config = state.chartType ? chartConfigMap.get(state.chartType) : null;
+    if (config && row_count && row_count > config.sampling_threshold) {
+      dispatch({ type: "GO_TO_SAMPLING" });
+    } else {
+      dispatch({ type: "GO_TO_VISUALIZATION" });
+    }
+  };
+
+  const handleSelectSampling = (method: SamplingMethods) => {
     dispatch({ type: "SELECT_SAMPLING", payload: method });
   };
 
-  const handleSkipSampling = () => {
-    dispatch({ type: "SKIP_SAMPLING" });
+  const handleSamplingContinue = () => {
+    dispatch({ type: "GO_TO_VISUALIZATION" });
   };
 
   const handleBack = () => {
@@ -162,6 +204,7 @@ export const WorkspacePage = () => {
     switch (state.step) {
       case "chartSelection":
         return <ChartSelection onSelectChart={handleChartSelect} />;
+
       case "columnMapping":
         if (!state.chartType) {
           handleBack();
@@ -174,16 +217,33 @@ export const WorkspacePage = () => {
             onGenerate={handleColumnMapping}
           />
         );
-      case "sampling":
+
+      case "aggregationSelection":
+        if (!chartConfig?.supported_aggregations) {
+          // This shouldn't happen
+          handleBack()
+          return null;
+        }
+        return (
+          <AggregationSelection
+            supportedMethods={chartConfig.supported_aggregations}
+            onSelection={handleAggregationSelect}
+            onContinue={handleAggregationContinue}
+            onBack={handleBack}
+          />
+        );
+
+      case "samplingSelection":
         if (!chartConfig) return null;
         return (
           <SamplingSelection
             supportedMethods={chartConfig.supported_sampling_methods}
-            onSelectMethod={handleSelectSampling}
-            onSkip={handleSkipSampling}
+            onSelection={handleSelectSampling}
+            onContinue={handleSamplingContinue}
             onBack={handleBack}
           />
         );
+
       case "visualization":
         // TODO : Handle these more gracefully later
         if (isChartDataLoading) return <div>Loading Chart...</div>;
@@ -197,6 +257,13 @@ export const WorkspacePage = () => {
             chartType={state.chartType}
             mapping={state.columnMapping}
             data={chartData}
+            chartTitle={chartConfig?.name ?? ""}
+            xAxisTitle={
+              state.columnMapping.category ?? state.columnMapping.x ?? ""
+            }
+            yAxisTitle={
+              state.columnMapping.value ?? state.columnMapping.y ?? ""
+            }
           />
         );
       default:

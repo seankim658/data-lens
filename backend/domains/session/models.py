@@ -48,6 +48,7 @@ class ChartDataPayload(BaseModel):
     chart_type: str
     mapping: Dict[str, Optional[str]]
     sampling_method: Optional[str] = None
+    aggregation_method: Optional[str] = None
 
 
 class SessionStateUpdatePayload(BaseModel):

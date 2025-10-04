@@ -12,6 +12,7 @@ import type {
 } from "@/types/api";
 import type { ChartConfig } from "@/config/chartConfig";
 import type { ColumnMapping } from "@/types/charts";
+import type { AggregationMethods } from "@/config/aggregationConfig";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -155,6 +156,7 @@ export const getChartData = async (
   sessionId: string,
   chartType: string,
   mapping: ColumnMapping,
+  aggregationMethod: AggregationMethods | null,
   samplingMethod: string | null,
 ): Promise<Record<string, any>[]> => {
   const response = await fetch(`${API_BASE_URL}/api/chart-data`, {
@@ -166,6 +168,7 @@ export const getChartData = async (
       session_id: sessionId,
       chart_type: chartType,
       mapping,
+      aggregation_method: aggregationMethod,
       samplingMethod: samplingMethod,
     }),
   });

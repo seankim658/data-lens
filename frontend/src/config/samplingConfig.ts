@@ -1,12 +1,14 @@
 import { Users, Shuffle, Filter, type LucideProps } from "lucide-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 
+export type SamplingMethods = "top_n" | "systematic" | "random";
+
 type LucideIcon = ForwardRefExoticComponent<
   Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>
 >;
 
 export interface SamplingConfig {
-  id: string;
+  id: SamplingMethods;
   name: string;
   description: string;
   icon: LucideIcon;

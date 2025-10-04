@@ -80,6 +80,7 @@ def get_processed_chart_data(
     session_data: SessionData,
     chart_type: str,
     mapping: Dict[str, Optional[str]],
+    aggregation_method: Optional[str],
     sampling_method: Optional[str],
 ) -> List[Dict[str, Any]]:
     """Loads, processes, and returns data for a chart."""
@@ -101,42 +102,67 @@ def get_processed_chart_data(
     if not x_col or not y_col:
         raise ValueError("Incomplete column mapping provided")
 
-    processed_df = apply_sampling(
-        df.select([x_col, y_col]),
-        sampling_method,
-        x_col,
-        y_col,
-        target_size=sampling_threshold,
+    aggregated_df = apply_aggregation(
+        df.select([x_col, y_col]), aggregation_method, x_col, y_col
     )
 
+    sampled_df = apply_sampling(
+        aggregated_df, sampling_method, x_col, y_col, target_size=sampling_threshold
+    )
+
+    processed_df = sampled_df.rename({x_col: "x", y_col: "y"})
+
     return processed_df.to_dicts()
+
+
+def apply_aggregation(
+    df: pl.DataFrame,
+    method: Optional[str],
+    category_col: str,
+    value_col: str,
+) -> pl.DataFrame:
+    """Applies a grouping and aggregation method to a dataframe."""
+    if not method:
+        return df
+
+    logging.info(f"Applying aggregation method `{method}` to dataframe")
+
+    aggregation_map = {
+        "sum": pl.sum(value_col).alias(value_col),
+        "mean": pl.mean(value_col).alias(value_col),
+        "count": pl.count().alias(value_col),
+    }
+
+    agg_expression = aggregation_map.get(method)
+    if agg_expression is None:
+        logging.warning(f"Unknown aggregation method `{method}`, skipping.")
+        return df
+
+    return df.group_by(category_col).agg(agg_expression)
 
 
 # TODO : implement a random seed later
 def apply_sampling(
     df: pl.DataFrame,
     method: Optional[str],
-    x_col: str,
-    y_col: str,
+    category_col: str,
+    value_col: str,
     target_size: int,
     top_n_count: int = 15,
 ) -> pl.DataFrame:
-    """Applies a sampling or aggregation method to the dataframe."""
-    if not method:
+    """Applies a sampling or filtering method to a dataframe."""
+    if not method or df.height <= target_size:
         return df.head(target_size)
 
     logging.info(f"Applying sampling method `{method}` to dataframe")
     match method:
         case "top_n":
-            top_n_df = (
-                df.group_by(x_col)
-                .agg(pl.sum(y_col))
-                .sort(y_col, descending=True)
-                .head(top_n_count)
-            )
-            other_sum = df[y_col].sum() - top_n_df[y_col].sum()
+            top_n_df = df.sort(value_col, descending=True).head(top_n_count)
+            other_sum = df[value_col].sum() - top_n_df[value_col].sum()
             if other_sum > 0.001 and df.height > top_n_count:
-                other_df = pl.DataFrame({x_col: ["Other"], y_col: [other_sum]})
+                other_df = pl.DataFrame(
+                    {category_col: ["Other"], value_col: [other_sum]}
+                )
                 return pl.concat([top_n_df, other_df])
             return top_n_df
         case "systematic":

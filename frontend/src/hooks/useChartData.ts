@@ -1,9 +1,10 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
 import { useAppState } from "./useAppContext";
-import type { ColumnMapping } from "@/types/charts";
 import { useEffect, useState, useMemo } from "react";
 import { getChartData } from "@/api/apiService";
+import type { ColumnMapping } from "@/types/charts";
+import type { AggregationMethods } from "@/config/aggregationConfig";
 
 /**
  * Provides chart data to UI components.
@@ -11,6 +12,7 @@ import { getChartData } from "@/api/apiService";
 export const useChartData = (
   chartType: string | null,
   mapping: ColumnMapping | null,
+  aggregationMethod: AggregationMethods | null,
   samplingMethod: string | null,
 ) => {
   const { sessionId } = useAppState();
@@ -46,6 +48,7 @@ export const useChartData = (
           sessionId,
           chartType,
           parsedMapping,
+          aggregationMethod,
           samplingMethod,
         );
 
@@ -58,7 +61,13 @@ export const useChartData = (
     };
 
     fetchData();
-  }, [sessionId, chartType, memoizedMapping, samplingMethod]);
+  }, [
+    sessionId,
+    chartType,
+    memoizedMapping,
+    aggregationMethod,
+    samplingMethod,
+  ]);
 
   return { data, isLoading, error };
 };

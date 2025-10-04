@@ -34,6 +34,11 @@ STEP_SPECIFIC_PROMPTS = {
         The user's dataset is large, and they are now on the 'Sampling' step for the '{chart_name}' chart.
         - Help them choose between the available sampling methods for this chart. Explain what each method does in simple terms.
         """,
+    "aggregationSelection": """
+        The user has mapped columns for their '{chart_name}' chart and is now on the 'Aggregation' step.
+        - Explain in simple terms what data aggregation means (e.g., "summing up values for each category").
+        - Guide them on choosing an aggregation method like Sum, Average, or Count based on what they want to find out.
+        """,
     "columnMapping": """
         The user has chosen a '{chart_name}' chart and is now on the 'Column Mapping' step. They need to drag and drop columns onto the chart axes.
         - Guide them on which columns from their dataset might be suitable for the '{axes_description}' axes.

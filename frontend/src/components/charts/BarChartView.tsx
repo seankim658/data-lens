@@ -1,36 +1,49 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-} from "recharts";
-import type { ColumnMapping } from "@/types/charts";
-import { CustomTooltip } from "@/components/charts/CustomToolTip";
+import { useRef, useEffect } from "react";
+import { HybridChartContainer } from "./HybridChartContainer";
+import { useBarChartRenderer } from "@/hooks/useBarChartRenderer";
 
 interface ChartViewProps {
   data: any[];
-  mapping: ColumnMapping;
+  chartTitle: string;
+  xAxisTitle: string;
+  yAxisTitle: string;
 }
 
-export function BarChartView({ data, mapping }: ChartViewProps) {
-  const categoryKey = mapping.category;
-  const valueKey = mapping.value;
+export function BarChartView({
+  data,
+  chartTitle,
+  xAxisTitle,
+  yAxisTitle,
+}: ChartViewProps) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  if (!categoryKey || !valueKey) return null;
+  const { renderChart } = useBarChartRenderer({
+    data,
+    svgRef,
+    canvasRef,
+    yDomain: null, // TODO : pass lens manipulations here later
+    chartTitle,
+    xAxisTitle,
+    yAxisTitle,
+  });
+
+  // Re-render only when the data itself changes
+  // Resizing is handled automatically by the HybridChartContainer
+  useEffect(() => {
+    const dims = svgRef.current?.getBoundingClientRect();
+    if (dims) {
+      renderChart({ width: dims.width, height: dims.height });
+    }
+  }, [data, renderChart]);
 
   return (
-    <BarChart data={data}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="x" name={categoryKey} />
-      <YAxis />
-      <Tooltip content={<CustomTooltip />} />
-      <Legend />
-      <Bar dataKey="y" name={valueKey} fill="var(--color-chart-1)" />
-    </BarChart>
+    <HybridChartContainer
+      svgRef={svgRef}
+      canvasRef={canvasRef}
+      renderChart={renderChart}
+    />
   );
 }

@@ -221,7 +221,11 @@ async def get_chart_data(
 
     try:
         chart_data = get_processed_chart_data(
-            session_data, payload.chart_type, payload.mapping, payload.sampling_method
+            session_data,
+            payload.chart_type,
+            payload.mapping,
+            payload.aggregation_method,
+            payload.sampling_method,
         )
         return chart_data
 
