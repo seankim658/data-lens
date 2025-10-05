@@ -44,6 +44,12 @@ class SessionData(BaseModel):
     active_lens_id: Optional[str] = None
 
 
+class PreloadedDatasetInfo(BaseModel):
+    id: str
+    name: str
+    description: str
+
+
 class ChartDataPayload(BaseModel):
     session_id: str
     chart_type: str

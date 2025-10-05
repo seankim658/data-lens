@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from . import logger
 from core.config import settings
 from domains.lenses.service import load_lenses_into_cache
-from domains.session.service import initialize_session_store
+from domains.session.service import initialize_session_store, load_preloaded_datasets_into_cache
 from domains.analysis.service import initialize_llm_provider
 
 
@@ -19,6 +19,7 @@ async def lifespan(app: FastAPI):
     app.state.llm_provider = initialize_llm_provider()
 
     load_lenses_into_cache()
+    load_preloaded_datasets_into_cache()
 
     logging.info("Application startup complete")
     yield

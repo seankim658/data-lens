@@ -11,6 +11,7 @@ import type {
   SessionStateUpdatePayload,
   LensConfig,
   EvaluationContext,
+  PreloadedDataset,
 } from "@/types/api";
 import type { ChartConfig } from "@/config/chartConfig";
 import type { ColumnMapping } from "@/types/charts";
@@ -44,6 +45,46 @@ export const uploadDataset = async (
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || "Failed to upload dataset");
+  }
+
+  return response.json();
+};
+
+export const getPreloadedDatasets = async (): Promise<PreloadedDataset[]> => {
+  const response = await fetch(`${API_BASE_URL}/api/preloaded-datasets`);
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch preloaded datasets");
+  }
+
+  return response.json();
+};
+
+/**
+ * Creates a new session using a preloaded dataset.
+ * @param datasetId - The ID of the preloaded dataset to load.
+ * @param supportedCharts - The list of chart configurations from the frontend.
+ * @returns A promise that resolves to the upload response.
+ */
+export const loadPreloadedDataset = async (
+  datasetId: string,
+  supportedCharts: ChartConfig[],
+): Promise<UploadResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/preloaded-datasets/load`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      dataset_id: datasetId,
+      supported_charts_json: JSON.stringify(supportedCharts),
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to load preloaded dataset");
   }
 
   return response.json();
