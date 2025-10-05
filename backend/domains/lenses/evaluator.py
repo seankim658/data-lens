@@ -34,7 +34,7 @@ class RuleEvaluator:
             if current_value is None:
                 return None
 
-            return current_value
+        return current_value
 
     def evaluate(self, rule: CompatibilityRule) -> bool:
         """Evaluates a single rule and returns True if it passes, False otherwise."""

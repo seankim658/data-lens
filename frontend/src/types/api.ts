@@ -1,5 +1,7 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
+import type { ColumnMapping } from "@/types/charts";
+
 export interface LensControl {
   type: string;
   target: string;
@@ -45,9 +47,21 @@ export interface AnalysisRecord {
 export interface SessionData {
   summary: string;
   columns: ColumnInfo[];
-  chart_data: Record<string, any>[];
+  row_count: number;
   chat_history: ChatMessage[];
   analysis_log: AnalysisRecord[];
+  current_step?: string;
+  selected_chart_type?: string | null;
+  column_mapping?: ColumnMapping | null;
+  active_lens_id?: string | null;
+}
+
+export interface SessionStateUpdatePayload {
+  session_id: string;
+  current_step?: string;
+  selected_chart_type?: string | null;
+  column_mapping?: ColumnMapping | null;
+  active_lens_id?: string | null;
 }
 
 export interface UploadResponse {
@@ -62,4 +76,19 @@ export interface AnalyzeResponse {
 
 export interface ChatResponse {
   response: string;
+}
+
+export interface ChartContext {
+  type: string;
+  active_columns: string[];
+}
+
+export interface DatasetContext {
+  columns: ColumnInfo[];
+  column_counts_by_dtype: Record<string, number>;
+}
+
+export interface EvaluationContext {
+  chart: ChartContext;
+  dataset: DatasetContext;
 }

@@ -1,17 +1,13 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
-import { useMemo } from "react";
-import { ResponsiveContainer } from "recharts";
-import type { ColumnMapping } from "@/types/charts";
 import { BarChartView } from "@/components/charts/BarChartView";
 import { LineChartView } from "@/components/charts/LineChartView";
 import { PieChartView } from "@/components/charts/PieChartView";
 import { ScatterChartView } from "@/components/charts/ScatterChartView";
+import type { ChartViewProps } from "@/types/charts";
 
-interface DynamicChartViewProps {
+interface DynamicChartViewProps extends ChartViewProps {
   chartType: string;
-  mapping: ColumnMapping;
-  data: Record<string, any>[];
 }
 
 const chartComponentMap: Record<string, React.FC<any>> = {
@@ -23,27 +19,11 @@ const chartComponentMap: Record<string, React.FC<any>> = {
 
 export function DynamicChartView({
   chartType,
-  mapping,
-  data,
+  ...props
 }: DynamicChartViewProps) {
-  const transformedData = useMemo(() => {
-    if (!data || !mapping) return [];
-
-    const xKey = mapping.x ?? mapping.category;
-    const yKey = mapping.y ?? mapping.value;
-
-    if (!xKey || !yKey) return [];
-
-    return data.map((row) => ({
-      x: row[xKey],
-      y: row[yKey],
-    }));
-  }, [data, mapping]);
-
-  if (transformedData.length === 0) {
+  if (!props.data || props.data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
-        {/* TODO : handle this better later */}
         No data available for the selected columns.
       </div>
     );
@@ -56,10 +36,8 @@ export function DynamicChartView({
   }
 
   return (
-    <div style={{ width: "100%", height: 500 }}>
-      <ResponsiveContainer>
-        <ChartComponent data={transformedData} mapping={mapping} />
-      </ResponsiveContainer>
+    <div style={{ width: "100%", height: "500px" }}>
+      <ChartComponent {...props} />
     </div>
   );
 }

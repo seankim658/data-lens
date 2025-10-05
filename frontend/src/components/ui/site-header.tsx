@@ -1,18 +1,23 @@
-import { Button } from "./button";
+import { Button } from "@/components/ui/button";
 import Logo from "@/assets/logo.svg?react";
-import { MessageSquarePlus, MessageSquareX } from "lucide-react";
+import { MessageSquarePlus, MessageSquareX, RotateCcw } from "lucide-react";
+import { useAppState } from "@/hooks/useAppContext";
 
 interface SiteHeaderProps {
   onToggleSidebar: () => void;
   isSidebarEnabled: boolean;
   isSidebarOpen: boolean;
+  onReset: () => void;
 }
 
 export function SiteHeader({
   onToggleSidebar,
   isSidebarEnabled,
   isSidebarOpen,
+  onReset,
 }: SiteHeaderProps) {
+  const { sessionId } = useAppState();
+
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
@@ -34,6 +39,13 @@ export function SiteHeader({
               GitHub
             </a>
           </Button>
+          {sessionId && (
+            <Button variant="outline" size="sm" onClick={onReset}>
+              <RotateCcw className="w-4 h-4" />
+              Reset
+            </Button>
+          )}
+
           {isSidebarEnabled && (
             <Button
               variant={isSidebarOpen ? "secondary" : "outline"}

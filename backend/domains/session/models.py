@@ -32,7 +32,29 @@ class SessionData(BaseModel):
 
     summary: str
     columns: List[ColumnInfo]
-    chart_data: List[Dict[str, Any]] = []
+    file_path: str
+    row_count: int
     supported_charts: List[Dict[str, Any]] = []
     chat_history: List[ChatMessage] = []
     analysis_log: List[AnalysisRecord] = []
+
+    current_step: Optional[str] = None
+    selected_chart_type: Optional[str] = None
+    column_mapping: Optional[Dict[str, Optional[str]]] = None
+    active_lens_id: Optional[str] = None
+
+
+class ChartDataPayload(BaseModel):
+    session_id: str
+    chart_type: str
+    mapping: Dict[str, Optional[str]]
+    sampling_method: Optional[str] = None
+    aggregation_method: Optional[str] = None
+
+
+class SessionStateUpdatePayload(BaseModel):
+    session_id: str
+    current_step: Optional[str] = None
+    selected_chart_type: Optional[str] = None
+    column_mapping: Optional[Dict[str, Optional[str]]] = None
+    active_lens_id: Optional[str] = None

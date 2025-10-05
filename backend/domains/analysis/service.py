@@ -61,7 +61,7 @@ async def get_ai_explanation(
         raw_response = await llm_provider.generate_explanation(messages)
 
         parts = raw_response.split(":", 1)
-        classification_str = parts[0].strip().lower()
+        classification_str = parts[0].strip().lower().replace(":", "")
         explanation = parts[1].strip() if len(parts) > 1 else raw_response
 
         correctness: Literal["correct", "partially_correct", "incorrect"] = "incorrect"

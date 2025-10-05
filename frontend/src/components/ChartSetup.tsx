@@ -10,6 +10,7 @@ import {
 import { type AxisId, chartConfigMap } from "@/config/chartConfig";
 import { GripVertical, X, Info } from "lucide-react";
 import { cn, isNumeric } from "@/lib/utils";
+import type { ColumnMapping } from "@/types/charts";
 
 interface ColumnPillGroupProps {
   columns: ColumnInfo[];
@@ -97,8 +98,6 @@ function ColumnPillGroup({
     </div>
   );
 }
-
-type ColumnMapping = Record<AxisId, string | null>;
 
 interface ChartSetupProps {
   chartType: string;

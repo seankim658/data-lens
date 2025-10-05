@@ -6,8 +6,16 @@ import { Bot, User, CornerDownLeft, LoaderCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { cn } from "@/lib/utils";
+import { samplingConfigs } from "@/config/samplingConfig";
+import { aggregationConfigs } from "@/config/aggregationConfig";
+import { chartConfigMap } from "@/config/chartConfig";
 
-export function ChatSidebar() {
+interface ChatSidebarProps {
+  currentStep: string;
+  chartType: string | null;
+}
+
+export function ChatSidebar({ currentStep, chartType }: ChatSidebarProps) {
   const { sessionId, chatHistory, isChatLoading } = useAppState();
   const dispatch = useAppDispatch();
   const [input, setInput] = useState("");
@@ -23,12 +31,37 @@ export function ChatSidebar() {
     e.preventDefault();
     if (!input.trim() || !sessionId || isChatLoading) return;
 
+    const selectedChartConfig = chartType
+      ? chartConfigMap.get(chartType)
+      : null;
+
+    const filteredSamplingConfigs =
+      selectedChartConfig?.supported_sampling_methods
+        ? samplingConfigs.filter((sc) =>
+            selectedChartConfig.supported_sampling_methods.includes(sc.id),
+          )
+        : [];
+
+    const filteredAggregationConfigs =
+      selectedChartConfig?.supported_aggregations
+        ? aggregationConfigs.filter((ac) =>
+            selectedChartConfig.supported_aggregations?.includes(ac.id),
+          )
+        : [];
+
     const userMessage = { role: "user" as const, content: input };
     dispatch({ type: "ADD_USER_MESSAGE", payload: userMessage });
 
     dispatch({ type: "CHAT_START" });
 
-    sendChatMessage(sessionId, input, dispatch);
+    sendChatMessage(
+      sessionId,
+      input,
+      currentStep,
+      dispatch,
+      filteredSamplingConfigs,
+      filteredAggregationConfigs,
+    );
 
     setInput("");
   };

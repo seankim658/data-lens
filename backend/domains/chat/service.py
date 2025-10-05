@@ -1,34 +1,111 @@
 import logging
-from typing import AsyncGenerator, List, Dict, Any
+from typing import AsyncGenerator, List, Dict, Any, Optional
 
-from .prompts import CHAT_SYSTEM_PROMPT
+from .prompts import CHAT_SYSTEM_PROMPT, STEP_SPECIFIC_PROMPTS
 from domains.lenses.service import get_all_lenses_from_cache
 from domains.session.models import SessionData
 from providers.base import LLMProvider
 
 
-def _format_prompt_tools(session_data: SessionData) -> str:
-    """Formats the available charts and lenses into the system prompt."""
+def _build_chat_system_prompt(
+    session_data: SessionData,
+    step_context: Optional[str],
+    sampling_configs: Optional[List[Dict[str, Any]]],
+    aggregation_configs: Optional[List[Dict[str, Any]]],
+) -> str:
+    """Formats the system prompt with charts, lenses, and step-specific context."""
+    logging.debug(f"Building chat prompt:\n\tStep: {step_context}")
     chart_str = "\n".join(
         [
-            f"- **{chart.get('name', 'Unknown')}:** {chart.get('description', 'No description')}"
-            for chart in session_data.supported_charts
+            f"- **{c.get('name', 'N/A')}:** {c.get('description', 'N/A')}"
+            for c in session_data.supported_charts
         ]
     )
-
     lenses = get_all_lenses_from_cache()
     lens_str = "\n".join([f"- **{lens.name}:** {lens.description}" for lens in lenses])
 
-    return CHAT_SYSTEM_PROMPT.format(
-        supported_charts=chart_str, supported_lenses=lens_str
+    current_step = step_context or session_data.current_step
+
+    # Conditionally build the sampling context block
+    sampling_block = ""
+    if current_step == "samplingSelection" and sampling_configs:
+        sampling_list_str = "\n".join(
+            [
+                f"- **{s.get('name', 'N/A')}:** {s.get('description', 'N/A')}"
+                for s in sampling_configs
+            ]
+        )
+        sampling_block = f"--- AVAILABLE SAMPLING METHODS ---\n{sampling_list_str}\n --------------------------------"
+
+    # Conditionally build the aggregation context block
+    aggregation_block = ""
+    if current_step == "aggregationSelection" and aggregation_configs:
+        aggregation_list_str = "\n".join(
+            [
+                f"- **{a.get('name', 'N/A')}:** {a.get('description', 'N/A')}"
+                for a in aggregation_configs
+            ]
+        )
+        aggregation_block = f"--- AVAILABLE AGGREGATION METHODS ---\n{aggregation_list_str}\n -----------------------------------"
+
+    step_prompt = ""
+    if current_step:
+        step_prompt = STEP_SPECIFIC_PROMPTS.get(current_step, "")
+
+        if "{chart_name}" in step_prompt and session_data.selected_chart_type:
+            chart_config = next(
+                (
+                    c
+                    for c in session_data.supported_charts
+                    if c.get("id") == session_data.selected_chart_type
+                ),
+                None,
+            )
+            chart_name = (
+                chart_config.get("name", "the selected")
+                if chart_config
+                else "the selected"
+            )
+            step_prompt = step_prompt.replace("{chart_name}", chart_name)
+
+        if "{axes_description}" in step_prompt and session_data.selected_chart_type:
+            chart_config = next(
+                (
+                    c
+                    for c in session_data.supported_charts
+                    if c.get("id") == session_data.selected_chart_type
+                ),
+                None,
+            )
+            if chart_config and "axes" in chart_config:
+                axes_desc = ", ".join(
+                    [f"'{ax.get('title')}'" for ax in chart_config["axes"]]
+                )
+                step_prompt = step_prompt.replace("{axes_description}", axes_desc)
+
+    prompt = CHAT_SYSTEM_PROMPT.format(
+        supported_charts=chart_str,
+        supported_lenses=lens_str,
+        sampling_context_block=sampling_block,
+        aggregation_context_block=aggregation_block,
+        step_specific_context=step_prompt,
     )
+
+    return prompt
 
 
 async def get_chat_response(
-    llm_provider: LLMProvider, session_data: SessionData, user_message: str
+    llm_provider: LLMProvider,
+    session_data: SessionData,
+    user_message: str,
+    step_context: Optional[str],
+    sampling_configs: Optional[List[Dict[str, Any]]],
+    aggregation_configs: Optional[List[Dict[str, Any]]],
 ) -> AsyncGenerator[str, None]:
     """Generates a conversational response from the LLM, maintaining chat history."""
-    system_prompt = _format_prompt_tools(session_data)
+    system_prompt = _build_chat_system_prompt(
+        session_data, step_context, sampling_configs, aggregation_configs
+    )
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": system_prompt},
         {"role": "system", "content": f"DATASET CONTEXT:\n{session_data.summary}"},

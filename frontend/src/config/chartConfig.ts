@@ -6,6 +6,8 @@ import {
   type LucideProps,
 } from "lucide-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
+import type { SamplingMethods } from "@/config/samplingConfig";
+import type { AggregationMethods } from "./aggregationConfig";
 
 export type AxisId = "x" | "y" | "category" | "value";
 
@@ -24,6 +26,9 @@ export interface ChartConfig {
   name: string;
   description: string;
   icon: LucideIcon;
+  sampling_threshold: number;
+  supported_sampling_methods: SamplingMethods[];
+  supported_aggregations?: AggregationMethods[];
   axes: AxisConfig[];
 }
 
@@ -33,6 +38,9 @@ export const chartConfigs: ChartConfig[] = [
     name: "Bar Chart",
     description: "Compare values across categories.",
     icon: ChartColumn,
+    sampling_threshold: 1000,
+    supported_sampling_methods: ["top_n"],
+    supported_aggregations: ["mean", "sum", "count"],
     axes: [
       {
         id: "category",
@@ -42,8 +50,7 @@ export const chartConfigs: ChartConfig[] = [
       {
         id: "value",
         title: "Value (Y-Axis)",
-        description:
-          "Numeric value that determines the height of each bar.",
+        description: "Numeric value that determines the height of each bar.",
       },
     ],
   },
@@ -52,6 +59,8 @@ export const chartConfigs: ChartConfig[] = [
     name: "Line Chart",
     description: "Show a trend over time.",
     icon: LineChart,
+    sampling_threshold: 500,
+    supported_sampling_methods: ["systematic", "random"],
     axes: [
       {
         id: "x",
@@ -71,6 +80,9 @@ export const chartConfigs: ChartConfig[] = [
     name: "Pie Chart",
     description: "Display parts of a whole.",
     icon: PieChart,
+    sampling_threshold: 50,
+    supported_sampling_methods: ["top_n"],
+    supported_aggregations: ["mean", "sum", "count"],
     axes: [
       {
         id: "category",
@@ -90,6 +102,8 @@ export const chartConfigs: ChartConfig[] = [
     name: "Scatter Plot",
     description: "Show the relationship between two variables.",
     icon: ScatterChart,
+    sampling_threshold: 1000,
+    supported_sampling_methods: ["systematic", "random"],
     axes: [
       {
         id: "x",
