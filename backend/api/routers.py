@@ -17,6 +17,7 @@ from domains.lenses.service import (
     get_all_lenses_from_cache,
     LensNotFoundError,
     get_compatible_lenses,
+    get_lens_by_id,
 )
 from domains.analysis.models import InteractionPayload
 from domains.analysis.service import get_ai_explanation
@@ -114,7 +115,12 @@ async def chat_with_assistant(
         full_response = ""
         try:
             async for chunk in get_chat_response(
-                llm_provider, session_data, payload.message, payload.step_context
+                llm_provider,
+                session_data,
+                payload.message,
+                payload.step_context,
+                payload.sampling_configs,
+                payload.aggregation_configs,
             ):
                 if chunk:
                     full_response += chunk
@@ -163,12 +169,8 @@ async def analyze_interaction(
         explanation, correctness = await get_ai_explanation(
             llm_provider, payload, session_data.summary
         )
-        lens_config = get_all_lenses_from_cache()
-        # Should probably do this better later
-        lens_name = next(
-            (lens.name for lens in lens_config if lens.id == payload.tool),
-            "Unknown Lens",
-        )
+        lens_config = get_lens_by_id(payload.tool)
+        lens_name = lens_config.name
 
         analysis_record = AnalysisRecord(
             lens_id=payload.tool,

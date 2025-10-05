@@ -1,18 +1,13 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
-import type { ColumnMapping } from "@/types/charts";
 import { BarChartView } from "@/components/charts/BarChartView";
 import { LineChartView } from "@/components/charts/LineChartView";
 import { PieChartView } from "@/components/charts/PieChartView";
 import { ScatterChartView } from "@/components/charts/ScatterChartView";
+import type { ChartViewProps } from "@/types/charts";
 
-interface DynamicChartViewProps {
+interface DynamicChartViewProps extends ChartViewProps {
   chartType: string;
-  mapping: ColumnMapping;
-  data: Record<string, any>[];
-  chartTitle: string;
-  xAxisTitle: string;
-  yAxisTitle: string;
 }
 
 const chartComponentMap: Record<string, React.FC<any>> = {
@@ -24,13 +19,9 @@ const chartComponentMap: Record<string, React.FC<any>> = {
 
 export function DynamicChartView({
   chartType,
-  mapping,
-  data,
-  chartTitle,
-  xAxisTitle,
-  yAxisTitle,
+  ...props
 }: DynamicChartViewProps) {
-  if (!data || data.length === 0) {
+  if (!props.data || props.data.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
         No data available for the selected columns.
@@ -46,13 +37,7 @@ export function DynamicChartView({
 
   return (
     <div style={{ width: "100%", height: "500px" }}>
-      <ChartComponent
-        data={data}
-        mapping={mapping}
-        chartTitle={chartTitle}
-        xAxisTitle={xAxisTitle}
-        yAxisTitle={yAxisTitle}
-      />
+      <ChartComponent {...props} />
     </div>
   );
 }

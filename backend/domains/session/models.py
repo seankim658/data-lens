@@ -41,6 +41,7 @@ class SessionData(BaseModel):
     current_step: Optional[str] = None
     selected_chart_type: Optional[str] = None
     column_mapping: Optional[Dict[str, Optional[str]]] = None
+    active_lens_id: Optional[str] = None
 
 
 class ChartDataPayload(BaseModel):
@@ -56,3 +57,4 @@ class SessionStateUpdatePayload(BaseModel):
     current_step: Optional[str] = None
     selected_chart_type: Optional[str] = None
     column_mapping: Optional[Dict[str, Optional[str]]] = None
+    active_lens_id: Optional[str] = None

@@ -38,7 +38,7 @@ export const chartConfigs: ChartConfig[] = [
     name: "Bar Chart",
     description: "Compare values across categories.",
     icon: ChartColumn,
-    sampling_threshold: 50000,
+    sampling_threshold: 1000,
     supported_sampling_methods: ["top_n"],
     supported_aggregations: ["mean", "sum", "count"],
     axes: [
@@ -59,7 +59,7 @@ export const chartConfigs: ChartConfig[] = [
     name: "Line Chart",
     description: "Show a trend over time.",
     icon: LineChart,
-    sampling_threshold: 10000,
+    sampling_threshold: 500,
     supported_sampling_methods: ["systematic", "random"],
     axes: [
       {
@@ -102,7 +102,7 @@ export const chartConfigs: ChartConfig[] = [
     name: "Scatter Plot",
     description: "Show the relationship between two variables.",
     icon: ScatterChart,
-    sampling_threshold: 20000,
+    sampling_threshold: 1000,
     supported_sampling_methods: ["systematic", "random"],
     axes: [
       {

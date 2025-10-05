@@ -6,7 +6,17 @@ import type {
   AnalysisRecord,
   SessionData,
 } from "@/types/api";
+import type { ColumnMapping } from "@/types/charts";
+import type { AggregationMethods } from "@/config/aggregationConfig";
+import type { SamplingMethods } from "@/config/samplingConfig";
 import { getSessionData } from "@/api/apiService";
+
+export type WorkspaceStep =
+  | "chartSelection"
+  | "columnMapping"
+  | "aggregationSelection"
+  | "samplingSelection"
+  | "visualization";
 
 export interface AppState {
   sessionId: string | null;
@@ -15,10 +25,17 @@ export interface AppState {
   row_count: number | null;
   isLoading: boolean;
   error: string | null;
-  aiResponse: string | null;
   isChatLoading: boolean;
   chatHistory: ChatMessage[];
   analysisLog: AnalysisRecord[];
+
+  // Workspace state
+  step: WorkspaceStep;
+  chartType: string | null;
+  columnMapping: ColumnMapping | null;
+  aggregationMethod: AggregationMethods | null;
+  samplingMethod: SamplingMethods | null;
+  activeLensId: string | null;
 }
 
 const SESSION_STORAGE_KEY = "dataLensSessionID";
@@ -30,10 +47,17 @@ const initialState: AppState = {
   row_count: null,
   isLoading: !!sessionStorage.getItem(SESSION_STORAGE_KEY),
   error: null,
-  aiResponse: null,
   isChatLoading: false,
   chatHistory: [],
   analysisLog: [],
+
+  // Workspace state
+  step: "chartSelection",
+  chartType: null,
+  columnMapping: null,
+  aggregationMethod: null,
+  samplingMethod: null,
+  activeLensId: null,
 };
 
 export type AppAction =
@@ -47,18 +71,22 @@ export type AppAction =
   | { type: "SESSION_FETCH_SUCCESS"; payload: SessionData }
   | { type: "SESSION_FETCH_FAILURE"; payload: string }
   | { type: "RESET_SESSION" }
-  | { type: "ANALYZE_START" }
-  | {
-      type: "ANALYZE_SUCCESS";
-      payload: { explanation: string; record: AnalysisRecord };
-    }
-  | { type: "ANALYZE_FAILURE"; payload: string }
   | { type: "CHAT_START" }
   | { type: "APPEND_CHAT_CHUNK"; payload: string }
   | { type: "CHAT_SUCCESS" }
   | { type: "CHAT_FAILURE"; payload: string }
   | { type: "ADD_USER_MESSAGE"; payload: ChatMessage }
-  | { type: "RESET_ERROR" };
+  | { type: "RESET_ERROR" }
+  // Workspace actions
+  | { type: "SELECT_CHART"; payload: string }
+  | { type: "SET_MAPPING"; payload: ColumnMapping }
+  | { type: "GO_TO_AGGREGATION" }
+  | { type: "SELECT_AGGREGATION"; payload: AggregationMethods }
+  | { type: "GO_TO_SAMPLING" }
+  | { type: "SELECT_SAMPLING"; payload: SamplingMethods }
+  | { type: "GO_TO_VISUALIZATION" }
+  | { type: "GO_BACK"; payload: { supported_aggregations: boolean } }
+  | { type: "SET_ACTIVE_LENS"; payload: string | null };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
   switch (action.type) {
@@ -75,6 +103,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         row_count: action.payload.data.row_count,
         chatHistory: action.payload.data.chat_history,
         analysisLog: action.payload.data.analysis_log,
+        step: "chartSelection",
+        chartType: null,
+        columnMapping: null,
+        aggregationMethod: null,
+        activeLensId: null,
       };
     case "SESSION_FETCH_START":
       return { ...state, isLoading: true, error: null };
@@ -87,6 +120,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         row_count: action.payload.row_count,
         chatHistory: action.payload.chat_history,
         analysisLog: action.payload.analysis_log,
+        step:
+          (action.payload.current_step as WorkspaceStep) || "chartSelection",
+        chartType: action.payload.selected_chart_type || null,
+        columnMapping: action.payload.column_mapping || null,
+        activeLensId: action.payload.active_lens_id || null,
       };
     case "SESSION_FETCH_FAILURE":
       sessionStorage.removeItem(SESSION_STORAGE_KEY);
@@ -94,7 +132,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         ...initialState,
         sessionId: null,
         isLoading: false,
-        row_count: null,
         error: action.payload,
       };
     case "RESET_SESSION":
@@ -103,20 +140,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         ...initialState,
         sessionId: null,
         isLoading: false,
-        row_count: null,
       };
     case "UPLOAD_FAILURE":
-      return { ...state, isLoading: false, error: action.payload };
-    case "ANALYZE_START":
-      return { ...state, isLoading: true, error: null, aiResponse: null };
-    case "ANALYZE_SUCCESS":
-      return {
-        ...state,
-        isLoading: false,
-        aiResponse: action.payload.explanation,
-        analysisLog: [...state.analysisLog, action.payload.record],
-      };
-    case "ANALYZE_FAILURE":
       return { ...state, isLoading: false, error: action.payload };
     case "CHAT_START":
       return {
@@ -159,6 +184,51 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       };
     case "RESET_ERROR":
       return { ...state, error: null };
+    case "SELECT_CHART":
+      return {
+        ...state,
+        step: "columnMapping",
+        chartType: action.payload,
+        columnMapping: null, // Reset subsequent state
+        aggregationMethod: null,
+        samplingMethod: null,
+        activeLensId: null,
+      };
+    case "SET_MAPPING":
+      return { ...state, columnMapping: action.payload };
+    case "GO_TO_AGGREGATION":
+      return { ...state, step: "aggregationSelection" };
+    case "SELECT_AGGREGATION":
+      return { ...state, aggregationMethod: action.payload };
+    case "GO_TO_SAMPLING":
+      return { ...state, step: "samplingSelection" };
+    case "SELECT_SAMPLING":
+      return { ...state, samplingMethod: action.payload };
+    case "GO_TO_VISUALIZATION":
+      return { ...state, step: "visualization" };
+    case "SET_ACTIVE_LENS":
+      return { ...state, activeLensId: action.payload };
+    case "GO_BACK":
+      if (
+        state.step === "visualization" ||
+        state.step === "samplingSelection"
+      ) {
+        return action.payload.supported_aggregations
+          ? { ...state, step: "aggregationSelection" }
+          : { ...state, step: "columnMapping", columnMapping: null };
+      }
+      if (state.step === "aggregationSelection") {
+        return { ...state, step: "columnMapping", columnMapping: null };
+      }
+      return {
+        ...state,
+        step: "chartSelection",
+        chartType: null,
+        columnMapping: null,
+        aggregationMethod: null,
+        samplingMethod: null,
+        activeLensId: null,
+      };
     default:
       return state;
   }
@@ -171,8 +241,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const rehydrateSession = async () => {
-      const savedSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY);
-      if (savedSessionId) {
+      const savedSessionId = state.sessionId;
+
+      if (savedSessionId && !state.datasetSummary) {
         dispatch({ type: "SESSION_FETCH_START" });
         try {
           const data = await getSessionData(savedSessionId);
@@ -187,7 +258,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     };
     rehydrateSession();
-  }, [dispatch]);
+  }, [state.sessionId, state.datasetSummary]);
 
   return (
     <AppStateContext.Provider value={state}>

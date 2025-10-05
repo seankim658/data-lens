@@ -9,10 +9,14 @@ import type {
   AnalyzeResponse,
   SessionData,
   SessionStateUpdatePayload,
+  LensConfig,
+  EvaluationContext,
 } from "@/types/api";
 import type { ChartConfig } from "@/config/chartConfig";
 import type { ColumnMapping } from "@/types/charts";
 import type { AggregationMethods } from "@/config/aggregationConfig";
+import type { SamplingConfig } from "@/config/samplingConfig";
+import type { AggregationConfig } from "@/config/aggregationConfig";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -82,6 +86,8 @@ export const sendChatMessage = (
   message: string,
   stepContext: string,
   dispatch: Dispatch<AppAction>,
+  samplingConfigs: SamplingConfig[],
+  aggregationConfigs: AggregationConfig[],
 ): void => {
   fetchEventSource(`${API_BASE_URL}/api/chat/query`, {
     method: "POST",
@@ -92,6 +98,8 @@ export const sendChatMessage = (
       session_id: sessionId,
       message,
       stepContext: stepContext,
+      sampling_configs: samplingConfigs,
+      aggregation_configs: aggregationConfigs,
     }),
 
     async onopen(response) {
@@ -219,4 +227,28 @@ export const updateSessionState = async (
     const errorData = await response.json();
     throw new Error(errorData.detail || "Failed to update session state");
   }
+};
+
+/**
+ * Fetches compatible lenses based on the current context.
+ * @param context - The chart and dataset context.
+ * @returns A promise that resolves to a list of compatible lens configurations.
+ */
+export const getCompatibleLenses = async (
+  context: EvaluationContext,
+): Promise<LensConfig[]> => {
+  const response = await fetch(`${API_BASE_URL}/api/lenses/compatible`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(context),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch compatible lenses");
+  }
+
+  return response.json();
 };

@@ -1,7 +1,11 @@
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/hooks/useAppContext";
-import { updateSessionState, resetSession } from "@/api/apiService";
+import {
+  updateSessionState,
+  resetSession,
+  getCompatibleLenses,
+} from "@/api/apiService";
 import { useAppDispatch } from "@/hooks/useAppContext";
 import { FileUpload } from "@/components/FileUpload";
 import { ChartSelection } from "@/components/ChartSelection";
@@ -11,177 +15,173 @@ import { ChatSidebar } from "@/components/ChatSidebar";
 import { SiteHeader } from "@/components/ui/site-header";
 import { useChartData } from "@/hooks/useChartData";
 import type { ColumnMapping } from "@/types/charts";
+import type { LensConfig, EvaluationContext } from "@/types/api";
 import { chartConfigMap } from "@/config/chartConfig";
 import { SamplingSelection } from "@/components/SamplingSelection";
 import { AggregationSelection } from "@/components/AggregationSelection";
 import type { AggregationMethods } from "@/config/aggregationConfig";
 import type { SamplingMethods } from "@/config/samplingConfig";
+import { LensPanel } from "@/components/LensPanel";
 import {
   ResizablePanel,
   ResizablePanelGroup,
   ResizableHandle,
 } from "@/components/ui/resizable";
-
-type WorkspaceStep =
-  | "chartSelection"
-  | "columnMapping"
-  | "aggregationSelection"
-  | "samplingSelection"
-  | "visualization";
-
-interface WorkspaceState {
-  step: WorkspaceStep;
-  chartType: string | null;
-  columnMapping: ColumnMapping | null;
-  aggregationMethod: AggregationMethods | null;
-  samplingMethod: string | null;
-}
-
-type WorkspaceAction =
-  | { type: "SELECT_CHART"; payload: string }
-  | { type: "SET_MAPPING"; payload: ColumnMapping }
-  | { type: "GO_TO_AGGREGATION" }
-  | { type: "SELECT_AGGREGATION"; payload: AggregationMethods }
-  | { type: "GO_TO_SAMPLING" }
-  | { type: "SELECT_SAMPLING"; payload: SamplingMethods }
-  | { type: "GO_TO_VISUALIZATION" }
-  | { type: "GO_BACK" };
-
-const initialState: WorkspaceState = {
-  step: "chartSelection",
-  chartType: null,
-  columnMapping: null,
-  aggregationMethod: null,
-  samplingMethod: null,
-};
-
-const workspaceReducer = (
-  state: WorkspaceState,
-  action: WorkspaceAction,
-): WorkspaceState => {
-  switch (action.type) {
-    case "SELECT_CHART":
-      return {
-        ...state,
-        step: "columnMapping",
-        chartType: action.payload,
-        columnMapping: null,
-        aggregationMethod: null,
-        samplingMethod: null,
-      };
-    case "SET_MAPPING":
-      return { ...state, columnMapping: action.payload };
-    case "GO_TO_AGGREGATION":
-      return { ...state, step: "aggregationSelection" };
-    case "SELECT_AGGREGATION":
-      return { ...state, aggregationMethod: action.payload };
-    case "GO_TO_SAMPLING":
-      return { ...state, step: "samplingSelection" };
-    case "SELECT_SAMPLING":
-      return {
-        ...state,
-        samplingMethod: action.payload,
-      };
-    case "GO_TO_VISUALIZATION":
-      return { ...state, step: "visualization" };
-    case "GO_BACK":
-      if (state.step === "visualization" || state.step === "samplingSelection") {
-        const config = state.chartType
-          ? chartConfigMap.get(state.chartType)
-          : null;
-        if (config?.supported_aggregations) {
-          return { ...state, step: "aggregationSelection" };
-        }
-        return { ...state, step: "columnMapping", columnMapping: null };
-      }
-      if (state.step === "aggregationSelection") {
-        return { ...state, step: "columnMapping", columnMapping: null };
-      }
-      return { ...initialState };
-    default:
-      return state;
-  }
-};
+import { calculateColumnCounts } from "@/lib/utils";
+import { LoaderCircle } from "lucide-react";
 
 export const WorkspacePage = () => {
-  const { sessionId, row_count } = useAppState();
-  const appDispatch = useAppDispatch();
+  const {
+    sessionId,
+    isLoading,
+    row_count,
+    columns,
+    step,
+    chartType,
+    columnMapping,
+    aggregationMethod,
+    samplingMethod,
+    activeLensId,
+  } = useAppState();
+
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [state, dispatch] = useReducer(workspaceReducer, initialState);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [compatibleLenses, setCompatibleLenses] = useState<LensConfig[]>([]);
+
+  // Lens props
+  const [yDomain, setYDomain] = useState<[number, number] | null>(null);
+
+  const chartConfig = useMemo(
+    () => (chartType ? chartConfigMap.get(chartType) : null),
+    [chartType],
+  );
 
   const {
     data: chartData,
     isLoading: isChartDataLoading,
     error: chartDataError,
-  } = useChartData(
-    state.chartType,
-    state.columnMapping,
-    state.aggregationMethod,
-    state.samplingMethod,
-  );
+  } = useChartData(chartType, columnMapping, aggregationMethod, samplingMethod);
 
   useEffect(() => {
     if (sessionId) {
       updateSessionState({
         session_id: sessionId,
-        current_step: state.step,
-        selected_chart_type: state.chartType,
-        column_mapping: state.columnMapping,
+        current_step: step,
+        selected_chart_type: chartType,
+        column_mapping: columnMapping,
+        active_lens_id: activeLensId,
       }).catch((err) => {
         console.error("Failed to sync session state:", err);
       });
     }
-  }, [sessionId, state.step, state.chartType, state.columnMapping]);
+  }, [sessionId, step, chartType, columnMapping, activeLensId]);
 
-  const handleChartSelect = (type: string) => {
-    dispatch({ type: "SELECT_CHART", payload: type });
-  };
-
-  const handleColumnMapping = (mapping: ColumnMapping) => {
-    dispatch({ type: "SET_MAPPING", payload: mapping });
-    const config = state.chartType ? chartConfigMap.get(state.chartType) : null;
-
-    // Check if aggregation is required
-    if (config?.supported_aggregations) {
-      dispatch({ type: "GO_TO_AGGREGATION" });
+  useEffect(() => {
+    if (step === "visualization" && sessionId && chartType && columns) {
+      const fetchLenses = async () => {
+        try {
+          const context: EvaluationContext = {
+            chart: {
+              type: chartType!,
+              active_columns: Object.values(columnMapping || {}).filter(
+                (c): c is string => !!c,
+              ),
+            },
+            dataset: {
+              columns: columns,
+              column_counts_by_dtype: calculateColumnCounts(columns),
+            },
+          };
+          const lenses = await getCompatibleLenses(context);
+          setCompatibleLenses(lenses);
+        } catch (err) {
+          console.error("Failed to fetch compatible lenses:", err);
+        }
+      };
+      fetchLenses();
+    } else {
+      setCompatibleLenses([]);
+      dispatch({ type: "SET_ACTIVE_LENS", payload: null });
     }
-    // Check if sampling is required
-    else if (config && row_count && row_count > config.sampling_threshold) {
-      dispatch({ type: "GO_TO_SAMPLING" });
-    }
-    // Go straigh to chart
-    else {
-      dispatch({ type: "GO_TO_VISUALIZATION" });
-    }
-  };
+  }, [step, sessionId, chartType, columnMapping, columns, dispatch]);
 
-  const handleAggregationSelect = (method: AggregationMethods) => {
-    dispatch({ type: "SELECT_AGGREGATION", payload: method });
-  };
+  const activeLens = useMemo(() => {
+    return compatibleLenses.find((lens) => lens.id === activeLensId) || null;
+  }, [compatibleLenses, activeLensId]);
 
-  const handleAggregationContinue = () => {
-    const config = state.chartType ? chartConfigMap.get(state.chartType) : null;
-    if (config && row_count && row_count > config.sampling_threshold) {
+  const handleChartSelect = useCallback(
+    (type: string) => {
+      dispatch({ type: "SELECT_CHART", payload: type });
+    },
+    [dispatch],
+  );
+
+  const handleColumnMapping = useCallback(
+    (mapping: ColumnMapping) => {
+      dispatch({ type: "SET_MAPPING", payload: mapping });
+      if (chartConfig?.supported_aggregations) {
+        dispatch({ type: "GO_TO_AGGREGATION" });
+      } else if (
+        chartConfig &&
+        row_count &&
+        row_count > chartConfig.sampling_threshold
+      ) {
+        dispatch({ type: "GO_TO_SAMPLING" });
+      } else {
+        dispatch({ type: "GO_TO_VISUALIZATION" });
+      }
+    },
+    [dispatch, chartConfig, row_count],
+  );
+
+  const handleAggregationSelect = useCallback(
+    (method: AggregationMethods) => {
+      dispatch({ type: "SELECT_AGGREGATION", payload: method });
+    },
+    [dispatch],
+  );
+
+  const handleAggregationContinue = useCallback(() => {
+    if (
+      chartConfig &&
+      row_count &&
+      row_count > chartConfig.sampling_threshold
+    ) {
       dispatch({ type: "GO_TO_SAMPLING" });
     } else {
       dispatch({ type: "GO_TO_VISUALIZATION" });
     }
-  };
+  }, [dispatch, chartConfig, row_count]);
 
-  const handleSelectSampling = (method: SamplingMethods) => {
-    dispatch({ type: "SELECT_SAMPLING", payload: method });
-  };
+  const handleSelectSampling = useCallback(
+    (method: SamplingMethods) => {
+      dispatch({ type: "SELECT_SAMPLING", payload: method });
+    },
+    [dispatch],
+  );
 
-  const handleSamplingContinue = () => {
+  const handleSamplingContinue = useCallback(() => {
     dispatch({ type: "GO_TO_VISUALIZATION" });
-  };
+  }, [dispatch]);
 
-  const handleBack = () => {
-    dispatch({ type: "GO_BACK" });
-  };
+  const handleSelectLens = useCallback(
+    (lens: LensConfig | null) => {
+      dispatch({ type: "SET_ACTIVE_LENS", payload: lens ? lens.id : null });
+    },
+    [dispatch],
+  );
 
-  const handleReset = async () => {
+  const handleBack = useCallback(() => {
+    dispatch({
+      type: "GO_BACK",
+      payload: {
+        supported_aggregations: !!chartConfig?.supported_aggregations,
+      },
+    });
+  }, [dispatch, chartConfig]);
+
+  const handleReset = useCallback(async () => {
     // TODO : make better confirm later
     if (
       sessionId &&
@@ -189,30 +189,28 @@ export const WorkspacePage = () => {
     ) {
       try {
         await resetSession(sessionId);
-        appDispatch({ type: "RESET_SESSION" });
+        dispatch({ type: "RESET_SESSION" });
         navigate("/");
       } catch (err) {
         console.error("Failed to reset session:", err);
       }
     }
-  };
+  }, [sessionId, dispatch, navigate]);
 
   const renderContent = () => {
-    const chartConfig = state.chartType
-      ? chartConfigMap.get(state.chartType)
-      : null;
-    switch (state.step) {
+    const chartConfig = chartType ? chartConfigMap.get(chartType) : null;
+    switch (step) {
       case "chartSelection":
         return <ChartSelection onSelectChart={handleChartSelect} />;
 
       case "columnMapping":
-        if (!state.chartType) {
+        if (!chartType) {
           handleBack();
           return null;
         }
         return (
           <ChartSetup
-            chartType={state.chartType}
+            chartType={chartType}
             onBack={handleBack}
             onGenerate={handleColumnMapping}
           />
@@ -221,7 +219,7 @@ export const WorkspacePage = () => {
       case "aggregationSelection":
         if (!chartConfig?.supported_aggregations) {
           // This shouldn't happen
-          handleBack()
+          handleBack();
           return null;
         }
         return (
@@ -248,31 +246,51 @@ export const WorkspacePage = () => {
         // TODO : Handle these more gracefully later
         if (isChartDataLoading) return <div>Loading Chart...</div>;
         if (chartDataError) return <div>Error: {chartDataError}</div>;
-        if (!state.chartType || !state.columnMapping || !chartData) {
+        if (!chartType || !columnMapping || !chartData) {
           return <div>Preparing visualization...</div>;
         }
 
         return (
-          <DynamicChartView
-            chartType={state.chartType}
-            mapping={state.columnMapping}
-            data={chartData}
-            chartTitle={chartConfig?.name ?? ""}
-            xAxisTitle={
-              state.columnMapping.category ?? state.columnMapping.x ?? ""
-            }
-            yAxisTitle={
-              state.columnMapping.value ?? state.columnMapping.y ?? ""
-            }
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start h-full">
+            <div className="lg:col-span-2 h-full">
+              <DynamicChartView
+                chartType={chartType}
+                data={chartData}
+                chartTitle={chartConfig?.name ?? ""}
+                xAxisTitle={columnMapping.category ?? columnMapping.x ?? ""}
+                yAxisTitle={columnMapping.value ?? columnMapping.y ?? ""}
+                yDomain={yDomain}
+              />
+            </div>
+
+            <div className="lg:col-span-1">
+              <LensPanel
+                compatibleLenses={compatibleLenses}
+                activeLens={activeLens}
+                onSelectLens={handleSelectLens}
+              />
+            </div>
+          </div>
         );
       default:
         return <ChartSelection onSelectChart={handleChartSelect} />;
     }
   };
 
+  // TODO : handle better later
   if (!sessionId) {
     return <FileUpload />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-4 text-muted-foreground">
+          <LoaderCircle className="w-8 h-8 animate-spin" />
+          <p className="text-lg">Loading your session...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -294,7 +312,7 @@ export const WorkspacePage = () => {
           <>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
-              <ChatSidebar currentStep={state.step} />
+              <ChatSidebar currentStep={step} chartType={chartType} />
             </ResizablePanel>
           </>
         )}

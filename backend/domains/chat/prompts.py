@@ -16,6 +16,8 @@ Here are the tools (lenses) and charts available to the user in this application
 {supported_lenses}
 --------------------------------
 
+{sampling_context_block}
+{aggregation_context_block}
 {step_specific_context}
 
 - If a user asks a question outside the scope of data analysis or the Data Lens tool, 
@@ -26,18 +28,18 @@ politely state that you can only help with topics related to data literacy.
 STEP_SPECIFIC_PROMPTS = {
     "chartSelection": """
         The user is currently on the 'Chart Selection' step.
-        - Help them choose a chart from the "AVAILABLE_CHARTS" lsit based on their goal.
+        - Help them choose a chart from the "AVAILABLE CHARTS" list based on their goal.
         - Analyze their quetsion and dataset to recommend a chart type that fits their data and question (e.g., don't suggest a line chart if there's no time-series data).
         """,
-    # TODO : add available sampling methods
-    "sampling": """
+    "samplingSelection": """
         The user's dataset is large, and they are now on the 'Sampling' step for the '{chart_name}' chart.
-        - Help them choose between the available sampling methods for this chart. Explain what each method does in simple terms.
+        - Explain in simple terms why sampling is needed for large datasets.
+        - Help them choose a method from the "AVAILABLE SAMPLING METHODS" list. Explain what each method does in simple terms.
         """,
     "aggregationSelection": """
         The user has mapped columns for their '{chart_name}' chart and is now on the 'Aggregation' step.
         - Explain in simple terms what data aggregation means (e.g., "summing up values for each category").
-        - Guide them on choosing an aggregation method like Sum, Average, or Count based on what they want to find out.
+        - Guide them on choosing an aggregation method from the "AVAILABLE AGGREGATION METHODS" list based on what they want to find out.
         """,
     "columnMapping": """
         The user has chosen a '{chart_name}' chart and is now on the 'Column Mapping' step. They need to drag and drop columns onto the chart axes.

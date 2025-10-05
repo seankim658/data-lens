@@ -8,7 +8,10 @@ from providers.base import LLMProvider
 
 
 def _build_chat_system_prompt(
-    session_data: SessionData, step_context: Optional[str]
+    session_data: SessionData,
+    step_context: Optional[str],
+    sampling_configs: Optional[List[Dict[str, Any]]],
+    aggregation_configs: Optional[List[Dict[str, Any]]],
 ) -> str:
     """Formats the system prompt with charts, lenses, and step-specific context."""
     logging.debug(f"Building chat prompt:\n\tStep: {step_context}")
@@ -21,8 +24,31 @@ def _build_chat_system_prompt(
     lenses = get_all_lenses_from_cache()
     lens_str = "\n".join([f"- **{lens.name}:** {lens.description}" for lens in lenses])
 
-    step_prompt = ""
     current_step = step_context or session_data.current_step
+
+    # Conditionally build the sampling context block
+    sampling_block = ""
+    if current_step == "samplingSelection" and sampling_configs:
+        sampling_list_str = "\n".join(
+            [
+                f"- **{s.get('name', 'N/A')}:** {s.get('description', 'N/A')}"
+                for s in sampling_configs
+            ]
+        )
+        sampling_block = f"--- AVAILABLE SAMPLING METHODS ---\n{sampling_list_str}\n --------------------------------"
+
+    # Conditionally build the aggregation context block
+    aggregation_block = ""
+    if current_step == "aggregationSelection" and aggregation_configs:
+        aggregation_list_str = "\n".join(
+            [
+                f"- **{a.get('name', 'N/A')}:** {a.get('description', 'N/A')}"
+                for a in aggregation_configs
+            ]
+        )
+        aggregation_block = f"--- AVAILABLE AGGREGATION METHODS ---\n{aggregation_list_str}\n -----------------------------------"
+
+    step_prompt = ""
     if current_step:
         step_prompt = STEP_SPECIFIC_PROMPTS.get(current_step, "")
 
@@ -60,6 +86,8 @@ def _build_chat_system_prompt(
     prompt = CHAT_SYSTEM_PROMPT.format(
         supported_charts=chart_str,
         supported_lenses=lens_str,
+        sampling_context_block=sampling_block,
+        aggregation_context_block=aggregation_block,
         step_specific_context=step_prompt,
     )
 
@@ -71,9 +99,13 @@ async def get_chat_response(
     session_data: SessionData,
     user_message: str,
     step_context: Optional[str],
+    sampling_configs: Optional[List[Dict[str, Any]]],
+    aggregation_configs: Optional[List[Dict[str, Any]]],
 ) -> AsyncGenerator[str, None]:
     """Generates a conversational response from the LLM, maintaining chat history."""
-    system_prompt = _build_chat_system_prompt(session_data, step_context)
+    system_prompt = _build_chat_system_prompt(
+        session_data, step_context, sampling_configs, aggregation_configs
+    )
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": system_prompt},
         {"role": "system", "content": f"DATASET CONTEXT:\n{session_data.summary}"},
