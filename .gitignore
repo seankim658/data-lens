@@ -3,4 +3,3 @@ env/
 .DS_store
 __pycache__/
 temp_uploads/
-preloaded_datasets/

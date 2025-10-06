@@ -9,7 +9,6 @@ import {
 import { chartConfigs } from "@/config/chartConfig";
 import { X, AlertTriangle, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Card,
   CardAction,
@@ -122,18 +121,23 @@ export function FileUpload({ onClose }: FileUploadProps) {
     (!selectedPreloadedId && (!file || !description.trim()));
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl">
       <Card>
         <form onSubmit={handleSubmit}>
           <CardHeader>
             <CardTitle>Start Your Investigation</CardTitle>
             <CardDescription>
-              Upload a CSV file with a brief description, or select one of our
+              Upload a CSV file with a brief description, or select one of the
               sample datasets to begin.
             </CardDescription>
             {onClose && (
               <CardAction>
-                <Button variant="ghost" size="icon" onClick={handleClose}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClose}
+                  type="button"
+                >
                   <X className="w-5 h-5" />
                   <span className="sr-only">Close</span>
                 </Button>
@@ -141,7 +145,7 @@ export function FileUpload({ onClose }: FileUploadProps) {
             )}
           </CardHeader>
 
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             {error && (
               <Alert variant="destructive">
                 <AlertTriangle className="w-4 h-4" />
@@ -158,98 +162,102 @@ export function FileUpload({ onClose }: FileUploadProps) {
                 <AlertDescription>{formError}</AlertDescription>
               </Alert>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="description">1. Dataset Description</Label>
-              <Textarea
-                id="description"
-                placeholder="e.g., Monthly sales data for a small retail business"
-                value={description}
-                onChange={(e) => {
-                  setFormError(null);
-                  setSelectedPreloadedId(null);
-                  setDescription(e.target.value);
-                }}
-                disabled={isLoading || isPreloading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>2. Upload CSV File</Label>
-              <Input
-                id="file-upload"
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                disabled={isLoading || isPreloading}
-                className="hidden"
-              />
-              <Label
-                htmlFor="file-upload"
-                className="flex h-9 w-full cursor-pointer items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
-              >
-                <span className="truncate pr-2 text-muted-foreground">
-                  {file ? file.name : "No file chosen"}
-                </span>
-                <div className="flex-shrink-0 rounded-sm bg-secondary px-3 py-1 text-secondary-foreground">
-                  Choose File
-                </div>
-              </Label>
+
+            <div className="space-y-4 pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="description">Dataset Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="e.g., Monthly sales data for a small retail business"
+                  value={description}
+                  onChange={(e) => {
+                    setFormError(null);
+                    setSelectedPreloadedId(null);
+                    setDescription(e.target.value);
+                  }}
+                  disabled={isLoading || isPreloading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Upload CSV File</Label>
+                <Input
+                  id="file-upload"
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  disabled={isLoading || isPreloading}
+                  className="hidden"
+                />
+                <Label
+                  htmlFor="file-upload"
+                  className="flex h-9 w-full cursor-pointer items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
+                >
+                  <span className="truncate pr-2 text-muted-foreground">
+                    {file ? file.name : "No file chosen"}
+                  </span>
+                  <div className="flex-shrink-0 rounded-sm bg-secondary px-3 py-1 text-secondary-foreground">
+                    Choose File
+                  </div>
+                </Label>
+              </div>
             </div>
 
-            {/* ++ Preloaded Datasets Section ++ */}
             {preloaded.length > 0 && (
               <>
-                <div className="relative my-6">
-                  <Separator />
-                  <span className="absolute left-1/2 -translate-x-1/2 -top-3 bg-card px-2 text-sm text-muted-foreground">
-                    OR
+                <div className="flex items-center">
+                  <div className="flex-grow border-t border-border" />
+                  <span className="mx-4 shrink-0 text-xs uppercase text-muted-foreground">
+                    Or
                   </span>
+                  <div className="flex-grow border-t border-border" />
                 </div>
-                <div className="space-y-2">
-                  <Label>Start with a sample dataset</Label>
-                  <div className="grid grid-cols-1 gap-4">
+
+                <div className="space-y-3">
+                  <Label>Start With a Sample Dataset</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {preloaded.map((dataset) => (
-                      <Card
+                      <div
                         key={dataset.id}
                         onClick={() => handlePreloadedSelect(dataset.id)}
                         className={cn(
-                          "cursor-pointer hover:border-primary transition-all text-left",
+                          "p-4 rounded-lg border bg-background cursor-pointer hover:border-primary/80 hover:bg-accent/50 transition-all",
                           {
-                            "border-primary ring-2 ring-primary/50":
+                            "bg-accent/80 border-primary ring-2 ring-primary/50":
                               selectedPreloadedId === dataset.id,
                           },
                         )}
                       >
-                        <CardHeader className="p-4">
-                          <CardTitle className="text-base">
-                            {dataset.name}
-                          </CardTitle>
-                          <CardDescription className="text-xs">
-                            {dataset.description}
-                          </CardDescription>
-                        </CardHeader>
-                      </Card>
+                        <h4 className="font-semibold text-sm">
+                          {dataset.name}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {dataset.description}
+                        </p>
+                      </div>
                     ))}
                   </div>
                 </div>
               </>
             )}
+
+            <div>
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={isAnalyzeDisabled}
+              >
+                {isLoading || isPreloading ? (
+                  <>
+                    <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  "Analyze"
+                )}
+              </Button>
+            </div>
           </CardContent>
-          <div className="p-6 pt-0">
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isAnalyzeDisabled}
-            >
-              {isLoading || isPreloading ? (
-                <>
-                  <LoaderCircle className="w-4 h-4 mr-2 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                "Analyze"
-              )}
-            </Button>
-          </div>
         </form>
       </Card>
     </div>
