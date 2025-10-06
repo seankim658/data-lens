@@ -92,3 +92,9 @@ export interface EvaluationContext {
   chart: ChartContext;
   dataset: DatasetContext;
 }
+
+export interface PreloadedDataset {
+  id: string;
+  name: string;
+  description: string;
+}

@@ -1,13 +1,15 @@
 import logging
 import os
+import yaml
 import uuid
 import json
 import polars as pl
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
+from pydantic import ValidationError
 
-from domains.session.models import SessionData, ColumnInfo
+from domains.session.models import SessionData, ColumnInfo, PreloadedDatasetInfo
 from session_store.base import SessionStore
 from session_store.memory_store import InMemorySessionStore
 from session_store.redis_store import RedisSessionStore
@@ -15,6 +17,9 @@ from core.config import settings
 
 UPLOAD_DIR = Path(__file__).parents[2] / "temp_uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+PRELOADED_DATASET_DIR = Path(__file__).parents[2] / "preloaded_datasets"
+_PRELOADED_DATASET_CACHE: Dict[str, Tuple[Path, PreloadedDatasetInfo]] = {}
 
 
 def initialize_session_store() -> SessionStore:
@@ -27,6 +32,73 @@ def initialize_session_store() -> SessionStore:
             return InMemorySessionStore()
         case _:
             return InMemorySessionStore()
+
+
+def load_preloaded_datasets_into_cache() -> None:
+    """Scans the preloaded_datasets directory and caches metadata."""
+    global _PRELOADED_DATASET_CACHE
+    logging.info("Loading all preloaded datasets into cache...")
+
+    _PRELOADED_DATASET_CACHE = {}
+    if not PRELOADED_DATASET_DIR.exists():
+        logging.warning("Preloaded datasets directory not found, skipping")
+        return
+
+    metadata_file = PRELOADED_DATASET_DIR / "metadata.yml"
+    if not metadata_file.exists():
+        logging.warning(
+            "Global metadata.yml not found in preloaded_datasets/, skipping"
+        )
+        return
+
+    try:
+        with open(metadata_file, "r") as f:
+            all_metadata = yaml.safe_load(f)
+            if not isinstance(all_metadata, list):
+                logging.error("metadata.yml is not a list, skipping preloaded datasets")
+                return
+
+        for metadata in all_metadata:
+            dataset_id = metadata.get("id")
+            filename = metadata.get("filename")
+            description = metadata.get("description")
+
+            if not (dataset_id or filename or description):
+                logging.error(
+                    f"Skipping dataset due to misisng 'id', 'filename', or 'description': {metadata}"
+                )
+                continue
+
+            data_path = PRELOADED_DATASET_DIR / filename
+            if not data_path.exists():
+                logging.error(
+                    f"Data file '{filename}' for dataset '{dataset_id}' not found, skipping"
+                )
+                continue
+
+            try:
+                info = PreloadedDatasetInfo(**metadata)
+                _PRELOADED_DATASET_CACHE[info.id] = (data_path, info)
+            except ValidationError as e:
+                logging.error(f"Invalid metadata for dataset '{dataset_id}': {e}")
+
+    except Exception as e:
+        logging.error(f"Error processing preloaded_datasets/metadata.yml: {e}")
+
+    logging.info(
+        f"Successfully cached {len(_PRELOADED_DATASET_CACHE)} preloaded datasets"
+    )
+
+
+def get_all_preloaded_datasets_from_cache() -> List[PreloadedDatasetInfo]:
+    return [info for _, info in _PRELOADED_DATASET_CACHE.values()]
+
+
+def get_preloaded_dataset_by_id(dataset_id: str) -> Tuple[Path, PreloadedDatasetInfo]:
+    """Retrieves a specific preloaded dataset's path and info from the cache."""
+    if dataset_id not in _PRELOADED_DATASET_CACHE:
+        raise FileNotFoundError(f"Preloaded dataset with id '{dataset_id}' not found.")
+    return _PRELOADED_DATASET_CACHE[dataset_id]
 
 
 def get_df_for_session(session_data: SessionData) -> pl.DataFrame:

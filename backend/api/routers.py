@@ -26,10 +26,13 @@ from domains.session.service import (
     get_processed_chart_data,
     get_session_data,
     clear_session,
+    get_all_preloaded_datasets_from_cache,
+    get_preloaded_dataset_by_id,
 )
 from domains.session.models import (
     ChatMessage,
     AnalysisRecord,
+    PreloadedDatasetInfo,
     SessionData,
     ChartDataPayload,
     SessionStateUpdatePayload,
@@ -39,6 +42,48 @@ MAX_FILE_SIZE = 30 * 1024 * 1024
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
+
+
+@router.get("/preloaded-datasets", response_model=List[PreloadedDatasetInfo])
+async def list_preloaded_datasets(request: Request):
+    """Returns a list of available preloaded datasets."""
+    logging.debug("Fetching all available preloaded datasets")
+    return get_all_preloaded_datasets_from_cache()
+
+
+@router.post("/preloaded-datasets/load", response_model=Dict[str, Any])
+@limiter.limit("5/minute")
+async def load_preloaded_dataset(
+    request: Request,
+    payload: Dict[str, Any],
+    session_store: SessionStore = Depends(get_session_store),
+):
+    """Loads a preloaded dataset into a new session."""
+    dataset_id = payload.get("dataset_id")
+    supported_charts_json = payload.get("supported_charts_json")
+    if not dataset_id or not supported_charts_json:
+        raise HTTPException(
+            status_code=400, detail="Missing dataset_id or supported_charts_json"
+        )
+
+    logging.info(f"Received request to load preloaded dataset: {dataset_id}")
+
+    try:
+        data_path, info = get_preloaded_dataset_by_id(dataset_id)
+        with open(data_path, "rb") as f:
+            contents = f.read()
+
+        supported_charts = json.loads(supported_charts_json)
+        session_id, session_data = create_and_store_session(
+            session_store, info.description, contents, supported_charts
+        )
+        logging.info(f"Successfully created session {session_id} from preloaded data")
+        return {"session_id": session_id, "data": session_data}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logging.error(f"Failed to load preloaded dataset: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to load dataset: {e}")
 
 
 # TODO : add some security checks before ingesting file

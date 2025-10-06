@@ -1,0 +1,4 @@
+- id: "cholesterol_exercise"
+  name: "Cholesterol and Exercise Dataset"
+  description: "A dataset mapping cholesterol, exercise, and age."
+  filename: "cholesterol_exercise.csv"

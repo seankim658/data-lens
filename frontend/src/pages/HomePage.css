@@ -1,4 +1,30 @@
 .collapsible-section {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.5s ease-in-out,
+    opacity 0.3s ease-in,
+    margin-top 0.5s ease-in-out;
+  margin-top: 0;
+}
+
+.collapsible-section.expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 1.5rem;
+  transition:
+    grid-template-rows 0.5s ease-in-out,
+    opacity 0.5s ease-out 0.2s,
+    margin-top 0.5s ease-in-out;
+}
+
+.collapsible-section > div {
+  overflow: hidden;
+}
+
+/*
+.collapsible-section {
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -18,3 +44,4 @@
     opacity 0.5s ease-out 0.2s,
     margin-top 0.5s ease-in-out;
 }
+*/
