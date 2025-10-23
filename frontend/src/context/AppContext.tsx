@@ -13,7 +13,6 @@ import { getSessionData } from "@/api/apiService";
 
 export type WorkspaceStep =
   | "chartSelection"
-  | "columnMapping"
   | "aggregationSelection"
   | "samplingSelection"
   | "visualization";
@@ -45,13 +44,12 @@ const initialState: AppState = {
   datasetSummary: null,
   columns: null,
   row_count: null,
-  isLoading: !!sessionStorage.getItem(SESSION_STORAGE_KEY),
+  isLoading: false,
   error: null,
   isChatLoading: false,
   chatHistory: [],
   analysisLog: [],
 
-  // Workspace state
   step: "chartSelection",
   chartType: null,
   columnMapping: null,
@@ -66,27 +64,24 @@ export type AppAction =
       type: "UPLOAD_SUCCESS";
       payload: { sessionId: string; data: SessionData };
     }
-  | { type: "UPLOAD_FAILURE"; payload: string }
+  | { type: "UPLOAD_ERROR"; payload: string }
   | { type: "SESSION_FETCH_START" }
   | { type: "SESSION_FETCH_SUCCESS"; payload: SessionData }
-  | { type: "SESSION_FETCH_FAILURE"; payload: string }
-  | { type: "RESET_SESSION" }
+  | { type: "SESSION_FETCH_ERROR"; payload: string }
+  | { type: "UPDATE_STEP"; payload: WorkspaceStep }
+  | { type: "UPDATE_CHART_SELECTION"; payload: string }
+  | { type: "UPDATE_COLUMN_MAPPING"; payload: ColumnMapping }
+  | { type: "UPDATE_AGGREGATION"; payload: AggregationMethods }
+  | { type: "UPDATE_SAMPLING"; payload: SamplingMethods }
+  | { type: "UPDATE_ACTIVE_LENS"; payload: string | null }
   | { type: "CHAT_START" }
+  | { type: "ADD_USER_MESSAGE"; payload: ChatMessage }
   | { type: "APPEND_CHAT_CHUNK"; payload: string }
   | { type: "CHAT_SUCCESS" }
   | { type: "CHAT_FAILURE"; payload: string }
-  | { type: "ADD_USER_MESSAGE"; payload: ChatMessage }
-  | { type: "RESET_ERROR" }
-  // Workspace actions
-  | { type: "SELECT_CHART"; payload: string }
-  | { type: "SET_MAPPING"; payload: ColumnMapping }
-  | { type: "GO_TO_AGGREGATION" }
-  | { type: "SELECT_AGGREGATION"; payload: AggregationMethods }
-  | { type: "GO_TO_SAMPLING" }
-  | { type: "SELECT_SAMPLING"; payload: SamplingMethods }
-  | { type: "GO_TO_VISUALIZATION" }
-  | { type: "GO_BACK"; payload: { supported_aggregations: boolean } }
-  | { type: "SET_ACTIVE_LENS"; payload: string | null };
+  | { type: "CHAT_ERROR"; payload: string }
+  | { type: "ADD_ANALYSIS_RECORD"; payload: AnalysisRecord }
+  | { type: "RESET_SESSION" };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
   switch (action.type) {
@@ -125,14 +120,79 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         chartType: action.payload.selected_chart_type || null,
         columnMapping: action.payload.column_mapping || null,
         activeLensId: action.payload.active_lens_id || null,
+        aggregationMethod:
+          (action.payload.aggregation_method as AggregationMethods) || null,
+        samplingMethod:
+          (action.payload.sampling_method as SamplingMethods) || null,
       };
-    case "SESSION_FETCH_FAILURE":
-      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    case "UPLOAD_ERROR":
+    case "SESSION_FETCH_ERROR":
+      return { ...state, isLoading: false, error: action.payload };
+    case "UPDATE_STEP":
+      return { ...state, step: action.payload };
+    case "UPDATE_CHART_SELECTION":
+      return { ...state, chartType: action.payload };
+    case "UPDATE_COLUMN_MAPPING":
+      return { ...state, columnMapping: action.payload };
+    case "UPDATE_AGGREGATION":
+      return { ...state, aggregationMethod: action.payload };
+    case "UPDATE_SAMPLING":
+      return { ...state, samplingMethod: action.payload };
+    case "UPDATE_ACTIVE_LENS":
+      return { ...state, activeLensId: action.payload };
+    case "CHAT_START":
+      return { ...state, isChatLoading: true };
+    case "ADD_USER_MESSAGE":
       return {
-        ...initialState,
-        sessionId: null,
-        isLoading: false,
+        ...state,
+        chatHistory: [...state.chatHistory, action.payload],
+      };
+    case "APPEND_CHAT_CHUNK": {
+      //const updatedHistory = [...state.chatHistory];
+      //const lastMessage = updatedHistory[updatedHistory.length - 1];
+      //
+      //if (lastMessage && lastMessage.role === "assistant") {
+      //  lastMessage.content += action.payload;
+      //} else {
+      //  updatedHistory.push({
+      //    role: "assistant",
+      //    content: action.payload,
+      //  });
+      //}
+      const updatedHistory = [...state.chatHistory];
+      const lastIndex = updatedHistory.length - 1;
+      const lastMessage = updatedHistory[lastIndex];
+
+      if (lastMessage && lastMessage.role === "assistant") {
+        updatedHistory[lastIndex] = {
+          ...lastMessage,
+          content: lastMessage.content + action.payload,
+        };
+      } else {
+        updatedHistory.push({
+          role: "assistant",
+          content: action.payload,
+        });
+      }
+
+      return {
+        ...state,
+        chatHistory: updatedHistory,
+      };
+    }
+    case "CHAT_SUCCESS":
+      return { ...state, isChatLoading: false };
+    case "CHAT_FAILURE":
+    case "CHAT_ERROR":
+      return {
+        ...state,
+        isChatLoading: false,
         error: action.payload,
+      };
+    case "ADD_ANALYSIS_RECORD":
+      return {
+        ...state,
+        analysisLog: [...state.analysisLog, action.payload],
       };
     case "RESET_SESSION":
       sessionStorage.removeItem(SESSION_STORAGE_KEY);
@@ -141,124 +201,36 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         sessionId: null,
         isLoading: false,
       };
-    case "UPLOAD_FAILURE":
-      return { ...state, isLoading: false, error: action.payload };
-    case "CHAT_START":
-      return {
-        ...state,
-        isChatLoading: true,
-        error: null,
-        chatHistory: [...state.chatHistory, { role: "assistant", content: "" }],
-      };
-    case "ADD_USER_MESSAGE":
-      return {
-        ...state,
-        chatHistory: [...state.chatHistory, action.payload],
-      };
-    case "APPEND_CHAT_CHUNK": {
-      const lastMessage = state.chatHistory[state.chatHistory.length - 1];
-      if (lastMessage?.role === "assistant") {
-        const updatedHistory = [...state.chatHistory];
-        updatedHistory[updatedHistory.length - 1] = {
-          ...lastMessage,
-          content: lastMessage.content + action.payload,
-        };
-        return { ...state, chatHistory: updatedHistory };
-      }
-      // TODO : should handle better (but this shouldn't happen)
-      return state;
-    }
-    case "CHAT_SUCCESS":
-      return {
-        ...state,
-        isChatLoading: false,
-      };
-    case "CHAT_FAILURE":
-      return {
-        ...state,
-        isChatLoading: false,
-        error: action.payload,
-        chatHistory: state.chatHistory.filter(
-          (m) => m.content !== "" || m.role !== "assistant",
-        ),
-      };
-    case "RESET_ERROR":
-      return { ...state, error: null };
-    case "SELECT_CHART":
-      return {
-        ...state,
-        step: "columnMapping",
-        chartType: action.payload,
-        columnMapping: null, // Reset subsequent state
-        aggregationMethod: null,
-        samplingMethod: null,
-        activeLensId: null,
-      };
-    case "SET_MAPPING":
-      return { ...state, columnMapping: action.payload };
-    case "GO_TO_AGGREGATION":
-      return { ...state, step: "aggregationSelection" };
-    case "SELECT_AGGREGATION":
-      return { ...state, aggregationMethod: action.payload };
-    case "GO_TO_SAMPLING":
-      return { ...state, step: "samplingSelection" };
-    case "SELECT_SAMPLING":
-      return { ...state, samplingMethod: action.payload };
-    case "GO_TO_VISUALIZATION":
-      return { ...state, step: "visualization" };
-    case "SET_ACTIVE_LENS":
-      return { ...state, activeLensId: action.payload };
-    case "GO_BACK":
-      if (
-        state.step === "visualization" ||
-        state.step === "samplingSelection"
-      ) {
-        return action.payload.supported_aggregations
-          ? { ...state, step: "aggregationSelection" }
-          : { ...state, step: "columnMapping", columnMapping: null };
-      }
-      if (state.step === "aggregationSelection") {
-        return { ...state, step: "columnMapping", columnMapping: null };
-      }
-      return {
-        ...state,
-        step: "chartSelection",
-        chartType: null,
-        columnMapping: null,
-        aggregationMethod: null,
-        samplingMethod: null,
-        activeLensId: null,
-      };
     default:
       return state;
   }
 };
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+interface AppProviderProps {
+  children: React.ReactNode;
+}
+
+export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
   useEffect(() => {
-    const rehydrateSession = async () => {
-      const savedSessionId = state.sessionId;
-
-      if (savedSessionId && !state.datasetSummary) {
-        dispatch({ type: "SESSION_FETCH_START" });
-        try {
-          const data = await getSessionData(savedSessionId);
+    const savedSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (savedSessionId && !state.datasetSummary && !state.isLoading) {
+      dispatch({ type: "SESSION_FETCH_START" });
+      getSessionData(savedSessionId)
+        .then((data) => {
           dispatch({ type: "SESSION_FETCH_SUCCESS", payload: data });
-        } catch (err) {
-          console.error("Failed to rehydrate session:", err);
+        })
+        .catch((error) => {
+          console.error("Failed to fetch session:", error);
           dispatch({
-            type: "SESSION_FETCH_FAILURE",
-            payload: (err as Error).message,
+            type: "SESSION_FETCH_ERROR",
+            payload: error.message,
           });
-        }
-      }
-    };
-    rehydrateSession();
-  }, [state.sessionId, state.datasetSummary]);
+          sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        });
+    }
+  }, [state.datasetSummary, state.isLoading]);
 
   return (
     <AppStateContext.Provider value={state}>
@@ -267,4 +239,4 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
       </AppDispatchContext.Provider>
     </AppStateContext.Provider>
   );
-};
+}

@@ -54,6 +54,8 @@ export interface SessionData {
   selected_chart_type?: string | null;
   column_mapping?: ColumnMapping | null;
   active_lens_id?: string | null;
+  aggregation_method?: string | null;
+  sampling_method?: string | null;
 }
 
 export interface SessionStateUpdatePayload {
@@ -62,6 +64,8 @@ export interface SessionStateUpdatePayload {
   selected_chart_type?: string | null;
   column_mapping?: ColumnMapping | null;
   active_lens_id?: string | null;
+  aggregation_method?: string | null;
+  sampling_method?: string | null;
 }
 
 export interface UploadResponse {

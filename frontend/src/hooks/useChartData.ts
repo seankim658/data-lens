@@ -1,7 +1,7 @@
 /* eslint-disable  @typescript-eslint/no-explicit-any */
 
-import { useAppState } from "./useAppContext";
-import { useEffect, useState, useMemo } from "react";
+import { useAppState } from "@/hooks/useAppContext";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { getChartData } from "@/api/apiService";
 import type { ColumnMapping } from "@/types/charts";
 import type { AggregationMethods } from "@/config/aggregationConfig";
@@ -19,11 +19,16 @@ export const useChartData = (
   const [data, setData] = useState<Record<string, any>[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const memoizedMapping = useMemo(
     () => (mapping ? JSON.stringify(mapping) : null),
     [mapping],
   );
+
+  const refetch = useCallback(() => {
+    setRefreshTrigger((prev) => prev + 1);
+  }, []);
 
   useEffect(() => {
     if (!sessionId || !memoizedMapping || !chartType) {
@@ -67,7 +72,8 @@ export const useChartData = (
     memoizedMapping,
     aggregationMethod,
     samplingMethod,
+    refreshTrigger,
   ]);
 
-  return { data, isLoading, error };
+  return { data, isLoading, error, refetch };
 };

@@ -42,6 +42,8 @@ class SessionData(BaseModel):
     selected_chart_type: Optional[str] = None
     column_mapping: Optional[Dict[str, Optional[str]]] = None
     active_lens_id: Optional[str] = None
+    aggregation_method: Optional[str] = None
+    sampling_method: Optional[str] = None
 
 
 class PreloadedDatasetInfo(BaseModel):
@@ -64,3 +66,5 @@ class SessionStateUpdatePayload(BaseModel):
     selected_chart_type: Optional[str] = None
     column_mapping: Optional[Dict[str, Optional[str]]] = None
     active_lens_id: Optional[str] = None
+    aggregation_method: Optional[str] = None
+    sampling_method: Optional[str] = None

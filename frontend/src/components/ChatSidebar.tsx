@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { useAppState, useAppDispatch } from "@/hooks/useAppContext";
 import { sendChatMessage } from "@/api/apiService";
 import { Bot, User, CornerDownLeft, LoaderCircle } from "lucide-react";
@@ -67,8 +69,8 @@ export function ChatSidebar({ currentStep, chartType }: ChatSidebarProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-card border-l">
-      <div className="flex items-center p-4 border-b">
+    <div className="flex flex-col h-full bg-card border-2 border-border shadow-lg">
+      <div className="flex items-center p-4 border-b border-border bg-muted/30">
         <div className="flex items-center gap-2">
           <Bot className="w-6 h-6" />
           <h2 className="text-lg font-semibold">Assistant</h2>
@@ -94,7 +96,7 @@ export function ChatSidebar({ currentStep, chartType }: ChatSidebarProps) {
             )}
             <div
               className={cn(
-                "max-w-xs md:max-w-md p-3 rounded-lg text-left",
+                "max-w-xs md:max-w-md p-3 rounded-lg text-left border-2 shadow-sm",
                 msg.role === "assistant"
                   ? "bg-muted"
                   : "bg-primary text-primary-foreground",
@@ -111,7 +113,30 @@ export function ChatSidebar({ currentStep, chartType }: ChatSidebarProps) {
                     "prose-invert": msg.role === "user",
                   })}
                 >
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={{
+                      ul: ({ children }) => (
+                        <ul className="list-disc pl-4 space-y-1">{children}</ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="list-decimal pl-4 space-y-1">
+                          {children}
+                        </ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="ml-0">{children}</li>
+                      ),
+                      p: ({ children }) => (
+                        <p className="mb-2 last:mb-0">{children}</p>
+                      ),
+                      strong: ({ children }) => (
+                        <strong className="font-semibold">{children}</strong>
+                      ),
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
               )}
             </div>
@@ -125,7 +150,7 @@ export function ChatSidebar({ currentStep, chartType }: ChatSidebarProps) {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t bg-background">
+      <div className="p-4">
         <form onSubmit={handleSubmit} className="relative">
           <Textarea
             placeholder="Ask about your data or for chart suggestions..."

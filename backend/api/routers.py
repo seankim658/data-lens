@@ -190,7 +190,7 @@ async def chat_with_assistant(
                 f"Internal server error during chat stream: {e}", exc_info=True
             )
             # TODO : figure out something better here later
-            yield "An error occurred.\n\n"
+            yield "data: An error occurred.\n\n"
         finally:
             yield "data: [DONE]\n\n"
 

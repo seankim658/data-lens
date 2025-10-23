@@ -91,7 +91,7 @@ export function FileUpload({ onClose }: FileUploadProps) {
           payload: { sessionId: response.session_id, data: response.data },
         });
       } catch (err) {
-        dispatch({ type: "UPLOAD_FAILURE", payload: (err as Error).message });
+        dispatch({ type: "UPLOAD_ERROR", payload: (err as Error).message });
       } finally {
         setIsPreloading(false);
       }
@@ -111,7 +111,7 @@ export function FileUpload({ onClose }: FileUploadProps) {
         payload: { sessionId: response.session_id, data: response.data },
       });
     } catch (err) {
-      dispatch({ type: "UPLOAD_FAILURE", payload: (err as Error).message });
+      dispatch({ type: "UPLOAD_ERROR", payload: (err as Error).message });
     }
   };
 
